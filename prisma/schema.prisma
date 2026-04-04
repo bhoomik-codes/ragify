@@ -1,0 +1,192 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String?
+  image          String?
+  password       String?   // Hashed bcrypt
+  onboardingDone Boolean   @default(false)
+  theme          String    @default("light")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accounts       Account[]
+  sessions       Session[]
+  rags           Rag[]
+  apiKeys        ApiKey[]
+  userApiKeys    UserApiKey[]
+  conversations  Conversation[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum RagStatus {
+  PENDING
+  INDEXING
+  READY
+  ERROR
+}
+
+model Rag {
+  id             String      @id @default(cuid())
+  userId         String
+  name           String
+  description    String?
+  emoji          String?     @default("🤖")
+  tags           String?     // Comma-separated tags
+  
+  // Model Configuration
+  provider       String      // e.g. ANTHROPIC, OPENAI, GOOGLE, MISTRAL
+  model          String      // e.g. claude-3-5-sonnet-20240620
+  temperature    Float       @default(0.7)
+  maxTokens      Int         @default(1000)
+  topP           Float       @default(1.0)
+  systemPrompt   String?     @default("You are a helpful AI assistant.")
+  strictMode     Boolean     @default(false)
+
+  // Retrieval Settings
+  chunkSize      Int         @default(500)
+  chunkOverlap   Int         @default(50)
+  topK           Int         @default(5)
+  threshold      Float       @default(0.7)
+  enableReranking Boolean     @default(false)
+  embeddingModel String      @default("text-embedding-3-small")
+
+  // Safety & Limits
+  maxTurns       Int         @default(10)
+  rateLimit      Int         @default(60) // queries per minute/hour
+  filterLevel    String      @default("MEDIUM")
+  citationMode   String      @default("INLINE")
+
+  // Sharing
+  shareToken     String?     @unique
+  sharePassword  String?     // Bcrypt hash
+
+  status         RagStatus   @default(PENDING)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents      Document[]
+  conversations  Conversation[]
+}
+
+enum DocumentStatus {
+  UPLOADING
+  PROCESSING
+  COMPLETED
+  ERROR
+}
+
+model Document {
+  id          String         @id @default(cuid())
+  ragId       String
+  name        String
+  size        Int
+  type        String
+  status      DocumentStatus @default(UPLOADING)
+  chunkCount  Int            @default(0)
+  metadata    String?        // JSON string
+  createdAt   DateTime       @default(now())
+
+  rag         Rag            @relation(fields: [ragId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id          String    @id @default(cuid())
+  ragId       String
+  userId      String
+  title       String?   @default("New Conversation")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  rag         Rag       @relation(fields: [ragId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    Message[]
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  sources        String?      // JSON string for sources
+  tokenUsage     Int          @default(0)
+  responseTimeMs Int          @default(0)
+  createdAt      DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  key       String   @unique
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserApiKey {
+  id           String   @id @default(cuid())
+  userId       String
+  provider     String   // ANTHROPIC | OPENAI | GOOGLE | MISTRAL
+  encryptedKey String   // AES-256-GCM ciphertext
+  iv           String   // GCM initialization vector
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
