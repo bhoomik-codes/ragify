@@ -1,0 +1,67 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Sizes */
+.sm {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+.md {
+  padding: 4px 12px;
+  font-size: 0.875rem;
+}
+
+/* Variants */
+.neutral {
+  background-color: var(--bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.success {
+  background-color: #ECFDF5;
+  color: #10B981;
+  border: 1px solid #10B981;
+}
+
+.warning {
+  background-color: #FFFBEB;
+  color: #F59E0B;
+  border: 1px solid #F59E0B;
+}
+
+.error {
+  background-color: #FEF2F2;
+  color: #EF4444;
+  border: 1px solid #EF4444;
+}
+
+.info {
+  background-color: #EFF6FF;
+  color: #3B82F6;
+  border: 1px solid #3B82F6;
+}
+
+/* Dark mode adjustments */
+:global([data-theme="dark"]) .success {
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+:global([data-theme="dark"]) .warning {
+  background-color: rgba(245, 158, 11, 0.1);
+}
+
+:global([data-theme="dark"]) .error {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+:global([data-theme="dark"]) .info {
+  background-color: rgba(59, 130, 246, 0.1);
+}

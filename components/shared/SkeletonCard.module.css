@@ -1,0 +1,67 @@
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.circle, .title, .line, .shortLine, .badge {
+  background-color: var(--border);
+  border-radius: var(--radius);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.title {
+  width: 50%;
+  height: 20px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.line {
+  width: 100%;
+  height: 12px;
+}
+
+.shortLine {
+  width: 70%;
+  height: 12px;
+}
+
+.footer {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.badge {
+  width: 60px;
+  height: 24px;
+  border-radius: 9999px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

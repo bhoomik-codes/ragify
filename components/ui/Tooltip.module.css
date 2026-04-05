@@ -1,0 +1,74 @@
+.wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 50;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  background-color: var(--text);
+  color: var(--bg);
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 1;
+}
+
+.arrow {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: var(--text);
+  transform: rotate(45deg);
+}
+
+.top {
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+.top .arrow {
+  bottom: -4px;
+  left: calc(50% - 4px);
+}
+
+.bottom {
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+.bottom .arrow {
+  top: -4px;
+  left: calc(50% - 4px);
+}
+
+.left {
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.left .arrow {
+  right: -4px;
+  top: calc(50% - 4px);
+}
+
+.right {
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+.right .arrow {
+  left: -4px;
+  top: calc(50% - 4px);
+}
+
+:global([data-theme="dark"]) .tooltip {
+  background-color: var(--border);
+  color: var(--text);
+}
+
+:global([data-theme="dark"]) .arrow {
+  background-color: var(--border);
+}

@@ -1,5 +1,8 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// Postgres-compatible — no SQLite-specific syntax used.
+// Switch datasource provider to "postgresql" and update DATABASE_URL for production.
 
 generator client {
   provider = "prisma-client-js"
@@ -7,15 +10,48 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
 }
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum RagStatus {
+  PENDING
+  INDEXING
+  READY
+  ERROR
+}
+
+enum DocumentStatus {
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+enum Provider {
+  ANTHROPIC
+  OPENAI
+  GOOGLE
+  MISTRAL
+}
+
+// ---------------------------------------------------------------------------
+// Auth models (NextAuth v5 / Auth.js adapter)
+// ---------------------------------------------------------------------------
 
 model User {
   id             String    @id @default(cuid())
   email          String    @unique
   name           String?
   image          String?
-  password       String?   // Hashed bcrypt
+  password       String?               // bcrypt hash — null for OAuth users
   onboardingDone Boolean   @default(false)
   theme          String    @default("light")
   createdAt      DateTime  @default(now())
@@ -30,18 +66,18 @@ model User {
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -53,7 +89,8 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -64,129 +101,170 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-enum RagStatus {
-  PENDING
-  INDEXING
-  READY
-  ERROR
-}
+// ---------------------------------------------------------------------------
+// RAG configuration
+// ---------------------------------------------------------------------------
 
 model Rag {
-  id             String      @id @default(cuid())
-  userId         String
-  name           String
-  description    String?
-  emoji          String?     @default("🤖")
-  tags           String?     // Comma-separated tags
-  
-  // Model Configuration
-  provider       String      // e.g. ANTHROPIC, OPENAI, GOOGLE, MISTRAL
-  model          String      // e.g. claude-3-5-sonnet-20240620
-  temperature    Float       @default(0.7)
-  maxTokens      Int         @default(1000)
-  topP           Float       @default(1.0)
-  systemPrompt   String?     @default("You are a helpful AI assistant.")
-  strictMode     Boolean     @default(false)
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  emoji       String?   @default("🤖")
+  tags        Json      @default("[]") // string[] stored as JSON array
 
-  // Retrieval Settings
-  chunkSize      Int         @default(500)
-  chunkOverlap   Int         @default(50)
-  topK           Int         @default(5)
-  threshold      Float       @default(0.7)
-  enableReranking Boolean     @default(false)
-  embeddingModel String      @default("text-embedding-3-small")
+  // Model configuration
+  provider     String  // mirrors Provider enum — stored as string for Sqlite compat
+  model        String
+  temperature  Float   @default(0.7)
+  maxTokens    Int     @default(1000)
+  topP         Float   @default(1.0)
+  systemPrompt String? @default("You are a helpful AI assistant.")
+  strictMode   Boolean @default(false)
 
-  // Safety & Limits
-  maxTurns       Int         @default(10)
-  rateLimit      Int         @default(60) // queries per minute/hour
-  filterLevel    String      @default("MEDIUM")
-  citationMode   String      @default("INLINE")
+  // Retrieval settings
+  chunkSize       Int     @default(500)
+  chunkOverlap    Int     @default(50)
+  topK            Int     @default(5)
+  threshold       Float   @default(0.7)
+  enableReranking Boolean @default(false)
+  embeddingModel  String  @default("text-embedding-3-small")
 
-  // Sharing
-  shareToken     String?     @unique
-  sharePassword  String?     // Bcrypt hash
+  // Safety & limits
+  maxTurns     Int    @default(10)
+  rateLimit    Int    @default(60)   // requests per minute
+  filterLevel  String @default("MEDIUM")
+  citationMode String @default("INLINE")
 
-  status         RagStatus   @default(PENDING)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  status    RagStatus @default(PENDING)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents      Document[]
-  conversations  Conversation[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents     Document[]
+  conversations Conversation[]
+  shareLinks    ShareLink[]
 }
 
-enum DocumentStatus {
-  UPLOADING
-  PROCESSING
-  COMPLETED
-  ERROR
-}
+// ---------------------------------------------------------------------------
+// Documents, Chunks, Embeddings
+// ---------------------------------------------------------------------------
 
 model Document {
-  id          String         @id @default(cuid())
-  ragId       String
-  name        String
-  size        Int
-  type        String
-  status      DocumentStatus @default(UPLOADING)
-  chunkCount  Int            @default(0)
-  metadata    String?        // JSON string
-  createdAt   DateTime       @default(now())
+  id         String         @id @default(cuid())
+  ragId      String
+  name       String
+  size       Int
+  type       String
+  status     DocumentStatus @default(QUEUED)
+  chunkCount Int            @default(0)
+  metadata   Json?          // typed as DocumentMetadata in lib/types.ts
 
-  rag         Rag            @relation(fields: [ragId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  rag    Rag     @relation(fields: [ragId], references: [id], onDelete: Cascade)
+  chunks Chunk[]
 }
+
+model Chunk {
+  id         String   @id @default(cuid())
+  documentId String
+  content    String
+  index      Int
+  tokenCount Int      @default(0)
+  metadata   Json?    // typed as ChunkMetadata in lib/types.ts
+
+  createdAt DateTime @default(now())
+
+  document  Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embedding Embedding?
+}
+
+model Embedding {
+  id        String   @id @default(cuid())
+  chunkId   String   @unique
+  vector    String   // JSON-serialised Float32Array — swap to vector type in prod
+  model     String   // e.g. "text-embedding-3-small"
+  createdAt DateTime @default(now())
+
+  chunk Chunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Conversations & Messages
+// ---------------------------------------------------------------------------
 
 model Conversation {
-  id          String    @id @default(cuid())
-  ragId       String
-  userId      String
-  title       String?   @default("New Conversation")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  ragId     String
+  userId    String
+  title     String?  @default("New Conversation")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  rag         Rag       @relation(fields: [ragId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages    Message[]
-}
-
-enum MessageRole {
-  USER
-  ASSISTANT
-  SYSTEM
+  rag      Rag       @relation(fields: [ragId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
 }
 
 model Message {
-  id             String       @id @default(cuid())
+  id             String      @id @default(cuid())
   conversationId String
   role           MessageRole
   content        String
-  sources        String?      // JSON string for sources
-  tokenUsage     Int          @default(0)
-  responseTimeMs Int          @default(0)
-  createdAt      DateTime     @default(now())
+  sources        Json?       // typed as MessageSource[] in lib/types.ts
+  tokenUsage     Int         @default(0)
+  responseTimeMs Int         @default(0)
+  createdAt      DateTime    @default(now())
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
+// ---------------------------------------------------------------------------
+// API keys (platform-level, hashed)
+// ---------------------------------------------------------------------------
+
+/// Platform API keys issued to users — stored as SHA-256 hash + prefix.
+/// Never store the raw key; show it exactly once on creation.
 model ApiKey {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  key       String   @unique
-  createdAt DateTime @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  keyHash    String    @unique // SHA-256(key) hex
+  keyPrefix  String            // first 8 chars of raw key, e.g. "rag_ABCD"
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+/// User-supplied provider keys — encrypted with AES-256-GCM.
+/// One record per provider per user; unique IV per row.
 model UserApiKey {
   id           String   @id @default(cuid())
   userId       String
-  provider     String   // ANTHROPIC | OPENAI | GOOGLE | MISTRAL
-  encryptedKey String   // AES-256-GCM ciphertext
-  iv           String   // GCM initialization vector
+  provider     String   // mirrors Provider enum
+  encryptedKey String   // AES-256-GCM ciphertext (hex)
+  iv           String   // 12-byte GCM IV (hex)
   createdAt    DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, provider])
+}
+
+// ---------------------------------------------------------------------------
+// Public share links
+// ---------------------------------------------------------------------------
+
+model ShareLink {
+  id           String    @id @default(cuid())
+  ragId        String
+  token        String    @unique // cryptographically random, URL-safe
+  passwordHash String?           // bcrypt hash — null means no password
+  expiresAt    DateTime?
+  clickCount   Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  rag Rag @relation(fields: [ragId], references: [id], onDelete: Cascade)
 }
