@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import type { TooltipProps } from '../../lib/types';
 import styles from './Tooltip.module.css';

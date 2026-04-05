@@ -1,0 +1,125 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--bg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.nav {
+  display: flex;
+  gap: 12px;
+}
+
+.linkWrapper {
+  text-decoration: none;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 64px 32px;
+  gap: 64px;
+}
+
+.heroText {
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.title {
+  font-size: 4rem;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 24px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  margin: 0 0 40px;
+  max-width: 600px;
+  line-height: 1.6;
+}
+
+.ctaGroup {
+  display: flex;
+  justify-content: center;
+}
+
+.heroVisual {
+  width: 100%;
+  max-width: 600px;
+  color: var(--text-muted);
+}
+
+.svgAnim {
+  width: 100%;
+  height: auto;
+}
+
+.docBox, .chatBox, .embedCircle {
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .docBox { animation: float 6s ease-in-out infinite; }
+  .chatBox { animation: float 6s ease-in-out infinite 1s; }
+  .embedCircle { animation: rotate 10s linear infinite; transform-origin: 200px 110px; }
+  
+  .dot1, .dot2, .dot3, .dot4, .dot5, .dot6 {
+    animation: flowPulse 2s ease-in-out infinite;
+  }
+  .dot2 { animation-delay: 0.2s; }
+  .dot3 { animation-delay: 0.4s; }
+  .dot4 { animation-delay: 0.6s; }
+  .dot5 { animation-delay: 0.8s; }
+  .dot6 { animation-delay: 1.0s; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes flowPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 2.5rem;
+  }
+  .subtitle {
+    font-size: 1rem;
+  }
+}

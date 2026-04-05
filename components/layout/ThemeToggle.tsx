@@ -22,11 +22,14 @@ export const ThemeToggle: React.FC = () => {
     
     // Background request to persist preference
     try {
-      await fetch('/api/users/me', {
+      const res = await fetch('/api/users/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ theme: newTheme })
       });
+      if (res.status === 429) {
+        console.warn('Rate limit exceeded for theme toggle');
+      }
     } catch (error) {
       console.error('Failed to save theme preference', error);
     }
