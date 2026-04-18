@@ -1,0 +1,103 @@
+.container {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.errorText {
+  color: #ef4444;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.stepperRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex: 1;
+}
+
+.step:last-child {
+  flex: 0;
+}
+
+.indicatorWrapper {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--border);
+  transition: background-color 0.3s ease;
+}
+
+.pulse {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  opacity: 0.4;
+  animation: pulseAnim 1.5s infinite;
+}
+
+.stageText {
+  margin-left: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  transition: color 0.3s ease;
+  white-space: nowrap;
+}
+
+.line {
+  flex: 1;
+  height: 2px;
+  background-color: var(--border);
+  margin: 0 8px;
+  transition: background-color 0.3s ease;
+}
+
+.lineComplete {
+  background-color: var(--accent);
+}
+
+/* States */
+.active .indicator {
+  background-color: var(--accent);
+}
+
+.active .stageText {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.complete .indicator {
+  background-color: var(--accent);
+}
+
+.complete .stageText {
+  color: var(--text);
+}
+
+@keyframes pulseAnim {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}

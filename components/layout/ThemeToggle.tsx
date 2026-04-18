@@ -19,6 +19,7 @@ export const ThemeToggle: React.FC = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
+    document.cookie = `theme=${newTheme}; path=/; max-age=31536000`;
     
     // Background request to persist preference
     try {

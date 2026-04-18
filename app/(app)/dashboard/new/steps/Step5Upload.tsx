@@ -1,52 +1,101 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useWizardStore } from '../wizardStore';
-import { Button } from '../../../../../components/ui/Button';
+import { useDropzone } from 'react-dropzone';
+import { PipelineStatus } from '../../../../../components/ui/PipelineStatus/PipelineStatus';
+import { StatusBadge } from '../../../../../components/shared/StatusBadge';
+import { DocumentStatus } from '../../../../../lib/types';
+import styles from './Step5Upload.module.css';
+
+interface UploadingFile {
+  id: string; 
+  name: string;
+  size: number;
+  status: DocumentStatus | 'UPLOADING' | 'FAILED';
+  error?: string;
+}
 
 export function Step5Upload() {
-  const { data, updateData } = useWizardStore();
-  const [mockAdding, setMockAdding] = useState(false);
+  const { files, setFiles } = useWizardStore();
+  const [globalError, setGlobalError] = useState<string>('');
 
-  const handleMockUpload = () => {
-    setMockAdding(true);
-    setTimeout(() => {
-      // Generate a mock CUID string that passes Zod's target shape
-      const mockCuid = 'cl' + Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
-      updateData({ documentIds: [...data.documentIds, mockCuid] });
-      setMockAdding(false);
-    }, 600);
-  };
+  const onDrop = useCallback(async (acceptedFiles: File[], fileRejections: any[]) => {
+    setGlobalError('');
+    if (fileRejections.length > 0) {
+      setGlobalError('Some files were rejected. Ensure they are < 10MB and supported types.');
+    }
+
+    for (const file of acceptedFiles) {
+      if (file.size > 10 * 1024 * 1024) {
+        setGlobalError((prev) => prev ? `${prev}\n${file.name} is too large (>10MB).` : `${file.name} is too large (>10MB).`);
+        continue;
+      }
+      
+      const tempId = `temp-${Date.now()}-${file.name}`;
+      setFiles(prev => [...prev, { id: tempId, file, status: 'PENDING' }]);
+    }
+  }, [setFiles]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'text/plain': ['.txt'],
+      'text/markdown': ['.md'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+    },
+    maxSize: 10 * 1024 * 1024
+  });
 
   return (
-    <div>
-      <h2 style={{ marginBottom: '16px', fontSize: '1.25rem', color: 'var(--text)' }}>Initial Documents</h2>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.875rem' }}>Upload initial files to bootstrap your RAG. Actual S3 pipeline injected in Phase 3.</p>
-      
-      <div style={{ 
-        border: '2px dashed var(--border)', 
-        borderRadius: 'var(--radius)', 
-        padding: '48px 24px', 
-        textAlign: 'center',
-        backgroundColor: 'var(--bg)',
-        color: 'var(--text)'
-      }}>
-        <div style={{ marginBottom: '16px' }}>Drag & Drop files here, or click to browse</div>
-        <Button variant="secondary" onClick={handleMockUpload} loading={mockAdding}>
-          Mock File Upload (Inject dummy CUID)
-        </Button>
+    <div className={styles.uploadContainer}>
+      <div>
+        <h2 style={{ marginBottom: '16px', fontSize: '1.25rem', color: 'var(--text)' }}>Initial Documents</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '0.875rem' }}>Upload initial files to bootstrap your RAG. Max 10MB per file (.pdf, .txt, .md, .docx).</p>
       </div>
 
-      {data.documentIds.length > 0 && (
-        <div style={{ marginTop: '24px' }}>
-          <h4 style={{ marginBottom: '8px', color: 'var(--text)' }}>Uploaded Documents:</h4>
-          <ul style={{ paddingLeft: '20px', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            {data.documentIds.map(id => (
-               <li key={id}>{id} (mocked)</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {globalError && <div className={styles.errorText}>{globalError}</div>}
+      
+      <div {...getRootProps()} className={`${styles.dropzone} ${isDragActive ? styles.dropzoneActive : ''}`}>
+        <input {...getInputProps()} />
+        {isDragActive ? (
+          <p className={styles.dropzoneText}>Drop the files here ...</p>
+        ) : (
+          <p className={styles.dropzoneText}>Drag & drop files here, or click to browse</p>
+        )}
+      </div>
+
+      <div className={styles.fileList}>
+        {files.map(f => {
+          if (f.status === 'PENDING' || f.status === 'UPLOADING' || f.status === 'FAILED') {
+            return (
+              <div key={f.id} className={styles.fileRow}>
+                <div className={styles.fileInfo}>
+                  <span className={styles.fileName}>{f.file.name}</span>
+                  <span className={styles.fileSize}>{(f.file.size / 1024 / 1024).toFixed(2)} MB {f.error && <span style={{color: '#ef4444'}}> - {f.error}</span>}</span>
+                </div>
+                <div style={{ color: f.status === 'FAILED' ? '#ef4444' : 'var(--text-muted)', fontSize: '0.875rem', fontWeight: 500 }}>
+                  {f.status === 'FAILED' ? 'Failed' : f.status === 'UPLOADING' ? 'Uploading...' : 'Ready to upload'}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={f.id} className={styles.fileWrapper}>
+              <div className={styles.fileRow}>
+                 <div className={styles.fileInfo}>
+                   <span className={styles.fileName}>{f.file.name}</span>
+                   <span className={styles.fileSize}>{(f.file.size / 1024 / 1024).toFixed(2)} MB</span>
+                 </div>
+                 <StatusBadge status={f.status as DocumentStatus} />
+              </div>
+              {f.documentId && <PipelineStatus documentId={f.documentId} onComplete={() => setFiles(prev => prev.map(file => file.id === f.id ? { ...file, status: 'READY' } : file))} />}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

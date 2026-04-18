@@ -8,7 +8,7 @@ import styles from './RagCard.module.css';
 
 export function RagCard({ rag }: { rag: RagDto }) {
   return (
-    <Link href={`/dashboard/rags/${rag.id}`} className={styles.link}>
+    <Link href={`/rags/${rag.id}/chat`} className={styles.link}>
       <Card className={styles.card} padding="lg">
         <div className={styles.header}>
           <div className={styles.titleInfo}>

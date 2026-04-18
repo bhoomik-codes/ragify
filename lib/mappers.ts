@@ -35,3 +35,29 @@ export function mapRagToDto(rag: Rag): RagDto {
     updatedAt: rag.updatedAt.toISOString(),
   };
 }
+
+/**
+ * Maps UserApiKey (BYOK) database results to the sanitized DTO.
+ */
+export function mapUserApiKeyToDto(key: import("@prisma/client").UserApiKey): import("./types").UserApiKeyDto {
+  return {
+    id: key.id,
+    userId: key.userId,
+    provider: key.provider as import("./types").Provider,
+    createdAt: key.createdAt.toISOString(),
+  };
+}
+
+/**
+ * Maps platform ApiKey database results to the sanitized DTO.
+ */
+export function mapApiKeyToDto(key: import("@prisma/client").ApiKey): import("./types").ApiKeyDto {
+  return {
+    id: key.id,
+    userId: key.userId,
+    name: key.name,
+    keyPrefix: key.keyPrefix,
+    lastUsedAt: key.lastUsedAt?.toISOString() || null,
+    createdAt: key.createdAt.toISOString(),
+  };
+}

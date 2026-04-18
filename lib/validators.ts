@@ -93,7 +93,7 @@ const PROVIDER_KEY_PATTERNS: Record<Provider, RegExp> = {
 export const createUserApiKeySchema = z
   .object({
     provider: z.nativeEnum(Provider),
-    key     : nonEmptyString,
+    key     : z.string().trim().min(1, "Required"),
   })
   .superRefine(({ provider, key }, ctx) => {
     const pattern = PROVIDER_KEY_PATTERNS[provider];
@@ -203,6 +203,10 @@ export const sendMessageSchema = z.object({
 });
 
 
+export const chatMessagesSchema = z.object({
+  messages: z.array(z.record(z.string(), z.unknown())),
+});
+
 /**
  * Shape written to `Message.sources` before DB insert.
  * Always validate with this before persisting.
@@ -283,6 +287,7 @@ export const registerSchema = z.object({
 export const updateProfileSchema = z.object({
   name : z.string().min(1).max(100).optional(),
   theme: z.enum(["light", "dark"]).optional(),
+  onboardingDone: z.boolean().optional(),
 });
 
 
@@ -297,3 +302,17 @@ export const changePasswordSchema = z
     message: "Passwords do not match",
   });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token          : nonEmptyString,
+    newPassword    : z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    path   : ["confirmPassword"],
+    message: "Passwords do not match",
+  });

@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Settings, Menu, X, LogOut } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 import styles from './Sidebar.module.css';
 
 export const Sidebar: React.FC = () => {
@@ -57,6 +58,17 @@ export const Sidebar: React.FC = () => {
             );
           })}
         </nav>
+
+        <div className={styles.footer}>
+          <button 
+            className={styles.logoutBtn} 
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            aria-label="Sign Out"
+          >
+            <LogOut size={20} className={styles.icon} />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </aside>
     </>
   );

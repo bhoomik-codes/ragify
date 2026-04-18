@@ -4,7 +4,12 @@ import type { ModalProps } from '../../lib/types';
 import styles from './Modal.module.css';
 
 export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children }) => {
+  const [mounted, setMounted] = React.useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -47,7 +52,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children }) 
     };
   }, [onClose]);
 
-  if (typeof window === 'undefined') return null;
+  if (!mounted) return null;
 
   return createPortal(
     <dialog ref={dialogRef} className={styles.modal}>

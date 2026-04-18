@@ -1,0 +1,80 @@
+.pipelineContainer {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 0;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stagesList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+.stagesList::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 8px;
+  width: 2px;
+  background-color: var(--border);
+  z-index: 1;
+}
+
+.stageRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+  color: var(--text);
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+.pending {
+  color: var(--text-muted);
+}
+
+.active {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.iconWrapper {
+  background-color: var(--bg-card);
+  border-radius: 50%;
+  display: flex;
+}
+
+.iconComplete {
+  color: #10B981;
+}
+
+.iconSpin {
+  color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+.iconPending {
+  color: var(--border);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
