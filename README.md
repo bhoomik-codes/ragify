@@ -4,12 +4,26 @@
 
 **Build, configure, and chat with your own Retrieval-Augmented Generation bots.**
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs)](https://nextjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)](https://typescriptlang.org)
-[![Prisma](https://img.shields.io/badge/Prisma-7-2d3748?logo=prisma)](https://prisma.io)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+<br/>
 
-[Features](#-features) · [Getting Started](#-getting-started) · [Architecture](#-architecture) · [Stack](#-tech-stack) · [Security](#-security)
+[![Next.js](https://img.shields.io/badge/Next.js_14-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React_18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript_5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Prisma](https://img.shields.io/badge/Prisma_7-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://prisma.io)
+[![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://sqlite.org)
+[![CSS Modules](https://img.shields.io/badge/CSS_Modules-1572B6?style=for-the-badge&logo=css3&logoColor=white)](#)
+
+[![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat-square&logo=openai&logoColor=white)](https://platform.openai.com)
+[![Anthropic](https://img.shields.io/badge/Anthropic-D4A574?style=flat-square&logo=anthropic&logoColor=white)](https://console.anthropic.com)
+[![Google Gemini](https://img.shields.io/badge/Google_Gemini-4285F4?style=flat-square&logo=googlegemini&logoColor=white)](https://ai.google.dev)
+[![Mistral](https://img.shields.io/badge/Mistral_AI-FF7000?style=flat-square&logo=mistral&logoColor=white)](https://mistral.ai)
+[![Vercel AI SDK](https://img.shields.io/badge/Vercel_AI_SDK-000000?style=flat-square&logo=vercel&logoColor=white)](https://sdk.vercel.ai)
+[![NextAuth](https://img.shields.io/badge/NextAuth_v5-9353D3?style=flat-square&logo=auth0&logoColor=white)](https://authjs.dev)
+[![Zod](https://img.shields.io/badge/Zod-3E67B1?style=flat-square&logo=zod&logoColor=white)](https://zod.dev)
+
+<br/>
+
+[Features](#-features) · [Quick Start](#-quick-start) · [Architecture](#-architecture) · [Tech Stack](#-tech-stack) · [Security](#-security) · [Roadmap](#-roadmap)
 
 </div>
 
@@ -19,109 +33,157 @@
 
 - **🔑 Bring-Your-Own-Key** — Use your own API keys for OpenAI, Anthropic, Google Gemini, or Mistral. Keys are encrypted at rest with AES-256-GCM. Zero LLM cost for the platform.
 - **💬 Real-Time Streaming Chat** — Live token-by-token responses powered by the Vercel AI SDK, with markdown rendering and source citations.
-- **📂 Document Upload & Retrieval** — Upload documents (TXT, MD, PDF) during RAG creation or directly in chat. Keyword retrieval surfaces relevant context to the LLM.
-- **🎛️ In-Chat Model Switcher** — Switch between models on the fly from a dropdown in the chat header — no need to leave the conversation.
+- **📂 Document Upload & Retrieval** — Upload documents (TXT, MD, PDF) during RAG creation or directly mid-chat via the 📎 button. Keyword retrieval surfaces relevant context to the LLM.
+- **🎛️ In-Chat Model Switcher** — Switch between 20+ models from all providers on the fly from a dropdown — no need to leave the conversation.
 - **⚙️ Live Bot Tuning** — Adjust temperature, max tokens, top-p, and system prompt from a slide-out panel without leaving the chat.
 - **🛡️ Granular Error Handling** — Distinct, actionable error banners for invalid keys, exhausted credits, rate limits, model-not-found, and context overflow.
-- **🏗️ Multi-Step Creation Wizard** — A guided 6-step wizard for creating RAGs: name, model, retrieval settings, safety, upload, and review.
-- **🔒 Platform API Keys** — Generate `rag_`-prefixed API keys for programmatic access, hashed with bcrypt. Revealed once, never stored in plaintext.
+- **🏗️ Multi-Step Creation Wizard** — A guided 6-step wizard: name → model → retrieval → safety → upload → review.
+- **🔒 Platform API Keys** — Generate `rag_`-prefixed keys for programmatic access, hashed with bcrypt. Revealed once, never stored in plaintext.
 - **🌙 Dark/Light Themes** — Full theme support via CSS custom properties. No Tailwind — pure vanilla CSS Modules.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Node.js 20+**
-- **npm** (`pnpm` or `yarn` also work)
+| Requirement | Version |
+| :--- | :--- |
+| **Node.js** | `≥ 20.x` |
+| **npm** | `≥ 10.x` (ships with Node 20) |
 
-### Setup
+### Step 1 — Clone & Install
 
 ```bash
-# Clone the repository
 git clone https://github.com/bhoomik-codes/ragify.git
 cd ragify
-
-# Install dependencies
 npm install
+```
 
-# Set up environment
+### Step 2 — Configure Environment
+
+```bash
 cp .env.example .env
 ```
 
-Edit `.env` and fill in the required values:
+Now generate the two **required** secrets and paste them into `.env`:
 
 ```bash
-# Generate ENCRYPTION_KEY (required):
+# Generate ENCRYPTION_KEY (64 hex chars — used for AES-256-GCM):
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
-# Generate AUTH_SECRET (required):
+# Generate AUTH_SECRET (NextAuth session signing):
 openssl rand -base64 32
 ```
 
+Your `.env` should look like:
+
+```env
+DATABASE_URL="file:./dev.db"
+AUTH_SECRET="<paste-your-auth-secret-here>"
+NEXTAUTH_URL="http://localhost:3000"
+ENCRYPTION_KEY="<paste-your-64-hex-char-key-here>"
+MOCK_MODE="false"
+```
+
+### Step 3 — Initialize the Database
+
 ```bash
-# Initialize the database
 npx prisma db push
 npx prisma generate
+```
 
-# Start the dev server
+### Step 4 — Start the Dev Server
+
+```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and register an account.
+Open **[http://localhost:3000](http://localhost:3000)**, register an account, and create your first RAG.
 
-### Mock Mode
+### 🧪 Running Without API Keys (Mock Mode)
 
-Set `MOCK_MODE="true"` in `.env` to bypass all real LLM calls — useful for development and testing without API keys.
+Don't have LLM API keys yet? No problem — set `MOCK_MODE="true"` in `.env` to run with simulated responses. This lets you explore the full UI, upload documents, and test the creation wizard without spending a cent.
+
+### 🔑 Adding Your LLM Keys
+
+Once running, navigate to **Settings → Provider Keys** in the app. Add your API key for any provider (OpenAI, Anthropic, Google, Mistral). Keys are encrypted with AES-256-GCM before touching the database — the raw key is never stored.
 
 ---
 
 ## 🏛️ Architecture
 
 ```
-app/
-├── (auth)/           # Login, Signup, Password Reset
-├── (app)/            # Authenticated routes
-│   ├── dashboard/    # RAG cards grid + creation wizard
-│   ├── rags/[id]/    # Chat interface
-│   └── settings/     # BYOK & Platform keys
-├── (marketing)/      # Landing page
-└── api/              # REST API routes
-    ├── auth/         # NextAuth + credential flows
-    ├── rags/         # CRUD, Chat streaming, Doc upload
-    └── users/        # Profile, Provider keys, Platform keys
-
-lib/
-├── auth.ts           # NextAuth v5 configuration
-├── crypto.ts         # AES-256-GCM encryption & bcrypt hashing
-├── llm.ts            # Provider-agnostic streaming engine
-├── pipeline.ts       # Document ingestion (parse → chunk → embed)
-├── vector.ts         # Cosine similarity & vector search
-├── validators.ts     # Zod schemas
-├── types.ts          # Single source of truth for all TypeScript types
-└── mappers.ts        # Prisma → DTO mapping
-
-components/
-├── layout/           # AppShell, Sidebar, TopBar, ThemeToggle
-├── settings/         # ProviderKeyManager, PlatformKeyManager
-├── shared/           # ConfirmDialog, EmptyState, OnboardingTour
-└── ui/               # Button, Card, Input, Modal, Badge, Spinner
+ragify/
+├── app/
+│   ├── (auth)/               # Login, Signup, Forgot/Reset Password
+│   ├── (app)/                # Protected routes (requires session)
+│   │   ├── dashboard/        # RAG cards grid
+│   │   │   └── new/          # 6-step creation wizard
+│   │   ├── rags/[ragId]/
+│   │   │   └── chat/         # Chat UI (model switcher, params panel, upload)
+│   │   └── settings/         # BYOK & Platform key management
+│   ├── (marketing)/          # Public landing page
+│   └── api/
+│       ├── auth/             # NextAuth handlers + credential flows
+│       ├── rags/             # CRUD, streaming chat, document upload
+│       │   └── [id]/
+│       │       ├── chat/     # POST — streaming chat endpoint
+│       │       └── documents/ # POST — in-chat file upload
+│       └── users/me/
+│           ├── provider-keys/ # BYOK key CRUD
+│           └── platform-keys/ # Platform API key CRUD
+│
+├── components/
+│   ├── layout/               # AppShell, Sidebar, TopBar, ThemeToggle
+│   ├── settings/             # ProviderKeyManager, PlatformKeyManager
+│   ├── shared/               # ConfirmDialog, EmptyState, OnboardingTour
+│   └── ui/                   # Button, Card, Input, Modal, Badge, Spinner
+│
+├── lib/
+│   ├── auth.ts               # NextAuth v5 config (credentials provider)
+│   ├── crypto.ts             # AES-256-GCM encrypt/decrypt + bcrypt
+│   ├── llm.ts                # Provider-agnostic streaming + error classification
+│   ├── pipeline.ts           # Document parse → chunk → embed pipeline
+│   ├── vector.ts             # Cosine similarity, serialize, searchChunks
+│   ├── validators.ts         # Zod schemas for all API payloads
+│   ├── types.ts              # SSoT for enums, DTOs, interfaces
+│   ├── mappers.ts            # Prisma row → safe DTO mapping
+│   ├── db.ts                 # Prisma client singleton
+│   └── mail.ts               # Email transport (password reset)
+│
+├── prisma/
+│   └── schema.prisma         # Database schema
+│
+├── middleware.ts              # Auth route protection
+└── .env.example               # Template for environment variables
 ```
 
 ---
 
 ## 🛠 Tech Stack
 
-| Layer | Technology |
+| Layer | Technology | Badge |
+| :--- | :--- | :--- |
+| **Framework** | Next.js 14 (App Router) | ![Next.js](https://img.shields.io/badge/Next.js-000?logo=nextdotjs&logoColor=white&style=flat-square) |
+| **Language** | TypeScript 5.9 (strict) | ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white&style=flat-square) |
+| **Runtime** | Node.js 22 | ![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white&style=flat-square) |
+| **Auth** | NextAuth v5 (Auth.js) | ![Auth.js](https://img.shields.io/badge/Auth.js-9353D3?style=flat-square) |
+| **ORM** | Prisma 7 | ![Prisma](https://img.shields.io/badge/Prisma-2D3748?logo=prisma&logoColor=white&style=flat-square) |
+| **Database** | SQLite (dev) → PostgreSQL (prod) | ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white&style=flat-square) |
+| **AI / LLM** | Vercel AI SDK v3.4.x | ![Vercel](https://img.shields.io/badge/AI_SDK-000?logo=vercel&logoColor=white&style=flat-square) |
+| **Validation** | Zod | ![Zod](https://img.shields.io/badge/Zod-3E67B1?logo=zod&logoColor=white&style=flat-square) |
+| **Styling** | Vanilla CSS Modules | ![CSS3](https://img.shields.io/badge/CSS_Modules-1572B6?logo=css3&logoColor=white&style=flat-square) |
+| **Encryption** | AES-256-GCM + bcrypt | ![Shield](https://img.shields.io/badge/AES--256--GCM-critical?style=flat-square) |
+
+### Supported LLM Providers
+
+| Provider | Models |
 | :--- | :--- |
-| **Framework** | Next.js 14 (App Router) |
-| **Language** | TypeScript 5.9 |
-| **Auth** | NextAuth v5 (Auth.js) with DB sessions |
-| **Database** | Prisma 7 + SQLite (dev) → PostgreSQL (prod) |
-| **Styling** | Vanilla CSS Modules |
-| **AI** | Vercel AI SDK `v3.4.x` (pinned) |
-| **Providers** | OpenAI, Anthropic, Google Gemini, Mistral |
+| ![OpenAI](https://img.shields.io/badge/OpenAI-412991?logo=openai&logoColor=white&style=flat-square) | GPT-4o, GPT-4o mini, o4-mini, o3-mini, o1, GPT-4 Turbo, GPT-3.5 Turbo |
+| ![Anthropic](https://img.shields.io/badge/Anthropic-D4A574?logo=anthropic&logoColor=white&style=flat-square) | Claude Opus 4.5, Sonnet 4.5, 3.7 Sonnet, 3.5 Sonnet, 3.5 Haiku, 3 Opus |
+| ![Google](https://img.shields.io/badge/Gemini-4285F4?logo=googlegemini&logoColor=white&style=flat-square) | Gemini 2.5 Flash, 2.5 Pro, 2.0 Flash, 1.5 Pro, 1.5 Flash |
+| ![Mistral](https://img.shields.io/badge/Mistral-FF7000?logo=mistral&logoColor=white&style=flat-square) | Mistral Large, Medium, Small, Codestral, Mixtral 8x22B |
 
 ---
 
@@ -129,28 +191,44 @@ components/
 
 | Concern | Implementation |
 | :--- | :--- |
-| Provider API keys | AES-256-GCM with unique IV per key |
-| Platform API keys | bcrypt hashed, raw key shown once |
-| Route authorization | IDOR check (`userId` match) on every API route |
-| Input validation | Zod schemas on all API payloads |
-| DTO mapping | Raw Prisma objects never returned to clients |
-| Secrets | `.env` excluded from git; `ENCRYPTION_KEY` required |
+| **Provider API keys** | AES-256-GCM with unique IV per key |
+| **Platform API keys** | bcrypt hashed; raw key shown exactly once |
+| **Route authorization** | IDOR check (`userId` match) on every API route |
+| **Input validation** | Zod schemas on all API payloads |
+| **DTO mapping** | Raw Prisma objects never returned to clients |
+| **Error classification** | LLM errors mapped to specific codes (no stack leaks) |
+| **Secrets** | `.env` excluded from git; `ENCRYPTION_KEY` required |
 
 ---
 
 ## 📋 Environment Variables
 
-| Variable | Required | Description |
-| :--- | :--- | :--- |
-| `DATABASE_URL` | ✅ | Database connection string |
-| `AUTH_SECRET` | ✅ | NextAuth session signing key |
-| `ENCRYPTION_KEY` | ✅ | 64-char hex string for AES-256-GCM |
-| `MOCK_MODE` | ❌ | Set `"true"` to bypass real LLM calls |
-| `MOCK_PIPELINE_DELAY_MS` | ❌ | Simulated pipeline delay (default: 500) |
-| `OPENAI_API_KEY` | ❌ | Platform-level OpenAI fallback key |
-| `ANTHROPIC_API_KEY` | ❌ | Platform-level Anthropic fallback key |
-| `GOOGLE_API_KEY` | ❌ | Platform-level Google fallback key |
-| `MISTRAL_API_KEY` | ❌ | Platform-level Mistral fallback key |
+| Variable | Required | Default | Description |
+| :--- | :---: | :--- | :--- |
+| `DATABASE_URL` | ✅ | `file:./dev.db` | Database connection string |
+| `AUTH_SECRET` | ✅ | — | NextAuth session signing key |
+| `NEXTAUTH_URL` | ✅ | `http://localhost:3000` | App base URL for NextAuth callbacks |
+| `ENCRYPTION_KEY` | ✅ | — | 64-char hex string for AES-256-GCM |
+| `MOCK_MODE` | ❌ | `"false"` | Set `"true"` to bypass real LLM calls |
+| `MOCK_PIPELINE_DELAY_MS` | ❌ | `500` | Simulated pipeline delay (ms) |
+| `OPENAI_API_KEY` | ❌ | — | Platform-level OpenAI fallback key |
+| `ANTHROPIC_API_KEY` | ❌ | — | Platform-level Anthropic fallback key |
+| `GOOGLE_API_KEY` | ❌ | — | Platform-level Google fallback key |
+| `MISTRAL_API_KEY` | ❌ | — | Platform-level Mistral fallback key |
+
+---
+
+## 📜 Available Scripts
+
+| Command | Description |
+| :--- | :--- |
+| `npm run dev` | Start Next.js development server on port 3000 |
+| `npm run build` | Create an optimized production build |
+| `npm start` | Run the production build |
+| `npm run lint` | Run ESLint checks |
+| `npx prisma studio` | Open Prisma's visual database browser |
+| `npx prisma db push` | Push schema changes to the database |
+| `npx tsc --noEmit` | Type-check the project without emitting files |
 
 ---
 
@@ -167,9 +245,40 @@ components/
 - [x] In-chat document upload
 - [x] Granular LLM error classification
 - [ ] Real embedding API integration (replace keyword search)
-- [ ] Analytics dashboard
+- [ ] Analytics dashboard (token usage, response times)
 - [ ] Public RAG sharing links
 - [ ] S3/R2 object storage for documents
+
+---
+
+## 🐛 Troubleshooting
+
+<details>
+<summary><b>Prisma: "Cannot find module '@prisma/client'"</b></summary>
+
+Run `npx prisma generate` to regenerate the Prisma client after any schema change.
+</details>
+
+<details>
+<summary><b>Hydration mismatch errors</b></summary>
+
+The `Modal` component uses a `mounted` state pattern to avoid server/client mismatch. If you see hydration errors after adding a new modal, ensure it returns `null` on the first render pass.
+</details>
+
+<details>
+<summary><b>"Invalid payload" when saving provider keys</b></summary>
+
+The validator trims whitespace automatically. If the error persists, check that the key format matches the provider's expected pattern (e.g., `sk-...` for OpenAI).
+</details>
+
+<details>
+<summary><b>ENCRYPTION_KEY errors on startup</b></summary>
+
+The key must be exactly 64 hex characters. Generate one with:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+</details>
 
 ---
 
