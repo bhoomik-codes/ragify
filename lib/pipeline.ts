@@ -1,14 +1,16 @@
 /**
  * lib/pipeline.ts
  *
- * Simulates Document Pipeline functions formatting native ingestion tasks (e.g., text parsing,
- * chunk mapping, and vector embeddings routing directly mapped from Document models).
- * This stub acts as the Phase 4 template for the real implementation embedding workers.
+ * Document ingestion pipeline: parse → chunk → embed → store.
+ *
+ * Embedding is done via Ollama (Qwen3-Embedding-8B by default).
+ * Falls back to mock random vectors if Ollama is unreachable.
  */
 
 import type { ChunkMetadata } from "./types";
 import { db } from "@/lib/db";
 import { serializeVector } from "@/lib/vector";
+import { embedText, isEmbeddingAvailable, DEFAULT_EMBEDDING_MODEL } from "@/lib/embeddings";
 import * as fs from "node:fs";
 
 export interface ExtractedDocument {
@@ -24,31 +26,30 @@ export interface DocumentChunk {
 }
 
 export interface ChunkEmbedding {
-  chunkId: string; // Dummy vector DB IDs natively mapped inside testing output
+  chunkId: string;
   vector: number[];
 }
 
 /**
- * Mocks parsing raw bytes (PDF, TXT, DOCX) extracting formatted string nodes
+ * Parses raw file bytes into text.
+ * Currently handles .txt/.md natively; PDF/DOCX returns placeholder.
  */
 export async function extractText(fileBuffer: ArrayBuffer, mimeType: string): Promise<ExtractedDocument> {
-  // Simulate heavy processing mapping natively 
-  await new Promise(r => setTimeout(r, Number(process.env.MOCK_PIPELINE_DELAY_MS || 500)));
+  await new Promise(r => setTimeout(r, Number(process.env.MOCK_PIPELINE_DELAY_MS || 100)));
 
   return {
-    text: "This is a placeholder extracted document strictly modeling testing capabilities without true blob allocations.",
+    text: "This is a placeholder extracted document. Replace with real PDF/DOCX parsing (e.g., pdf-parse).",
     metadata: { mimeType, status: "extracted" },
   };
 }
 
 /**
- * Subdivides giant text blocks cleanly into cleanly manageable chunks
+ * Subdivides text into overlapping chunks for embedding.
  */
 export function chunkDocument(text: string, chunkSize: number, overlap: number): DocumentChunk[] {
-  // Simple token counting map directly mimicking tiktoken lengths for simple English
   const tokens = text.split(" ");
   const chunks: DocumentChunk[] = [];
-  
+
   let currentIndex = 0;
   let chunkId = 0;
 
@@ -58,29 +59,30 @@ export function chunkDocument(text: string, chunkSize: number, overlap: number):
       content: subset.join(" "),
       index: chunkId++,
       tokenCount: subset.length,
-      metadata: { section: `mock_section_${chunkId}` }
+      metadata: { section: `section_${chunkId}` }
     });
     currentIndex += (chunkSize - overlap);
   }
-  
+
   return chunks;
 }
 
 /**
- * Returns standard Array float vectors strictly mocking Open AI format 
+ * Generates a mock random vector (fallback when Ollama is not available).
  */
-export async function embedChunks(chunks: DocumentChunk[], modelName: string): Promise<ChunkEmbedding[]> {
-  // Simulate API vector wait strictly allowing integrations mapped securely natively 
-  await new Promise(r => setTimeout(r, Number(process.env.MOCK_PIPELINE_DELAY_MS || 500)));
-  
-  return chunks.map(chunk => ({
-    chunkId: `mock_vector_db_id_${chunk.index}`,
-    vector: new Array(1536).fill(0).map(() => Math.random() * 2 - 1),
-  }));
+function mockEmbedding(dimension: number = 1536): Float32Array {
+  const vec = new Float32Array(dimension);
+  for (let i = 0; i < dimension; i++) {
+    vec[i] = Math.random() * 2 - 1;
+  }
+  return vec;
 }
 
 /**
- * Executes full asynchronous chunking -> embedding mapping saving completely cleanly
+ * Executes the full ingestion pipeline: parse → chunk → embed → store.
+ *
+ * If Ollama is available with the embedding model, uses real vector embeddings.
+ * Otherwise falls back to mock random vectors (keyword search still works).
  */
 export async function runIngestionPipeline(documentId: string, filePath: string): Promise<void> {
   try {
@@ -94,11 +96,11 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
       include: { rag: true }
     });
 
-    if (!documentRecord) throw new Error("Document vanished before processing natively.");
+    if (!documentRecord) throw new Error("Document not found.");
 
     let textChunkRaw = "";
 
-    // Simple extension router mocking capabilities smoothly
+    // Parse text from file based on extension
     if (documentRecord.name.endsWith(".txt") || documentRecord.name.endsWith(".md")) {
        textChunkRaw = fs.readFileSync(filePath, "utf-8");
     } else {
@@ -108,13 +110,29 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
     }
 
     const { rag } = documentRecord;
-    
-    // Break into nodes mapped natively referencing RAG configuration
+
+    // Determine which embedding model to use
+    const embeddingModelName = rag.embeddingModel || DEFAULT_EMBEDDING_MODEL;
+
+    // Check if Ollama + embedding model is available
+    const useRealEmbeddings = await isEmbeddingAvailable(embeddingModelName);
+    if (useRealEmbeddings) {
+      console.log(`[PIPELINE] Using real embeddings: ${embeddingModelName}`);
+    } else {
+      console.warn(`[PIPELINE] Ollama model "${embeddingModelName}" not available. Using mock embeddings.`);
+    }
+
+    // Break text into chunks
     const documentChunks = chunkDocument(textChunkRaw, rag.chunkSize, rag.chunkOverlap);
 
     for (const chunkData of documentChunks) {
-      const mockVectorArray = await embedChunks([chunkData], rag.embeddingModel);
-      const vectorResponse = mockVectorArray[0];
+      // Generate embedding (real or mock)
+      let vector: Float32Array;
+      if (useRealEmbeddings) {
+        vector = await embedText(chunkData.content, embeddingModelName);
+      } else {
+        vector = mockEmbedding();
+      }
 
       const recordChunk = await db.chunk.create({
         data: {
@@ -129,15 +147,15 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
       await db.embedding.create({
         data: {
           chunkId: recordChunk.id,
-          model: rag.embeddingModel,
-          vector: serializeVector(new Float32Array(vectorResponse.vector))
+          model: embeddingModelName,
+          vector: serializeVector(vector)
         }
       });
     }
 
     await db.document.update({
       where: { id: documentId },
-      data: { 
+      data: {
         status: "READY",
         chunkCount: documentChunks.length
       }
@@ -151,17 +169,16 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
          data: { status: "FAILED" }
        });
      } catch (e) {
-       console.error("Failed to commit FAILED status.", e);
+       console.error("Failed to set FAILED status.", e);
      }
   } finally {
-     // Clean up local temp file mappings eagerly preventing OS locking
+     // Clean up temp file
      try {
        if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
        }
      } catch (e) {
-       console.error("Failed to clear temporary upload file", filePath);
+       console.error("Failed to remove temp file", filePath);
      }
   }
 }
-

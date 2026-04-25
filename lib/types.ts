@@ -20,6 +20,7 @@ export enum Provider {
   OPENAI    = "OPENAI",
   GOOGLE    = "GOOGLE",
   MISTRAL   = "MISTRAL",
+  LOCAL     = "LOCAL",
 }
 
 /** Lifecycle state of a RAG pipeline. Mirrors Prisma `RagStatus`. */

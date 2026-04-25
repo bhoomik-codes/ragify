@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { chatMessagesSchema } from "@/lib/validators";
 import { decryptKey } from "@/lib/crypto";
+import { searchChunks } from "@/lib/vector";
+import { embedText, isEmbeddingAvailable } from "@/lib/embeddings";
 
 import { ragStream, LlmError, type LlmErrorCode } from '@/lib/llm';
 
@@ -90,29 +92,46 @@ export async function POST(
     
     let contextualSnippets = "";
     if (lastUserMessage) {
-      // Keyword-based retrieval fallback (used until real embeddings are wired)
-      const queryKeywords = lastUserMessage.content
-        .toLowerCase()
-        .replace(/[^\w\s]/g, ' ')
-        .split(/\s+/)
-        .filter(w => w.length > 3);
+      let matchedChunks: Array<{ content: string }> = [];
 
-      const chunks = await db.chunk.findMany({
-        where: {
-          document: {
-            ragId: id,
-            status: 'READY',
+      // Try real vector search first (if Ollama embedding model is available)
+      const embeddingModel = rag.embeddingModel || 'qwen3-embedding';
+      const canEmbed = await isEmbeddingAvailable(embeddingModel);
+
+      if (canEmbed) {
+        try {
+          const queryVector = await embedText(lastUserMessage.content, embeddingModel);
+          matchedChunks = await searchChunks(queryVector, id, rag.topK, rag.threshold);
+        } catch (err) {
+          console.warn('[CHAT] Vector search failed, falling back to keyword search:', err);
+        }
+      }
+
+      // Fallback: keyword-based search if vector search didn't produce results
+      if (matchedChunks.length === 0) {
+        const queryKeywords = lastUserMessage.content
+          .toLowerCase()
+          .replace(/[^\w\s]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w.length > 3);
+
+        matchedChunks = await db.chunk.findMany({
+          where: {
+            document: {
+              ragId: id,
+              status: 'READY',
+            },
+            OR: queryKeywords.length > 0
+              ? queryKeywords.map(kw => ({ content: { contains: kw } }))
+              : undefined,
           },
-          OR: queryKeywords.length > 0
-            ? queryKeywords.map(kw => ({ content: { contains: kw } }))
-            : undefined,
-        },
-        take: rag.topK,
-        orderBy: { index: 'asc' },
-      });
-      
-      if (chunks.length > 0) {
-        contextualSnippets = "\n\nRetrieved Context:\n" + chunks.map(c => `[Context Snippet]\n${c.content}`).join("\n\n");
+          take: rag.topK,
+          orderBy: { index: 'asc' },
+        });
+      }
+
+      if (matchedChunks.length > 0) {
+        contextualSnippets = "\n\nRetrieved Context:\n" + matchedChunks.map(c => `[Context Snippet]\n${c.content}`).join("\n\n");
       }
     }
 
@@ -136,9 +155,15 @@ export async function POST(
 
     const isMockMode = process.env.MOCK_MODE === "true";
 
+    // LOCAL provider (Ollama) needs no API key
+    const effectiveProvider = (modelOverride ? rag.provider : rag.provider) as string;
+    const isLocalProvider = effectiveProvider === 'LOCAL';
+
     const keyResolution = isMockMode
       ? { key: "mock-key", isFromPlatform: false }
-      : resolveProviderKey(session.user.id, userApiKey, rag.provider);
+      : isLocalProvider
+        ? { key: "ollama", isFromPlatform: false }
+        : resolveProviderKey(session.user.id, userApiKey, rag.provider);
 
     if (!keyResolution) {
       return NextResponse.json({ error: "no_api_key", provider: rag.provider }, { status: 402 });

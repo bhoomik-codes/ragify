@@ -131,6 +131,16 @@ export async function ragStream(params: RagStreamParams) {
         modelInstance = mistral(model);
         break;
       }
+      case Provider.LOCAL: {
+        // Ollama exposes an OpenAI-compatible API at /v1
+        const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+        const ollama = createOpenAI({
+          baseURL: `${ollamaBaseUrl}/v1`,
+          apiKey: 'ollama', // Ollama requires no real key, but the SDK needs a non-empty string
+        });
+        modelInstance = ollama(model);
+        break;
+      }
       case Provider.OPENAI:
       default: {
         const openai = createOpenAI({ apiKey });

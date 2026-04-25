@@ -83,6 +83,7 @@ const PROVIDER_KEY_PATTERNS: Record<Provider, RegExp> = {
   [Provider.OPENAI]   : /^sk-[A-Za-z0-9]{20,}$/,
   [Provider.GOOGLE]   : /^[A-Za-z0-9\-_]{20,}$/,    // Google AI Studio keys vary
   [Provider.MISTRAL]  : /^[A-Za-z0-9]{32,}$/,
+  [Provider.LOCAL]    : /^.+$/,                       // Local (Ollama) — no key needed
 };
 
 // ---------------------------------------------------------------------------
