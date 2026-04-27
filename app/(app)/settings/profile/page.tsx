@@ -1,13 +1,20 @@
 import React from 'react';
 import { auth } from '@/lib/auth';
+import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import styles from './ProfilePage.module.css';
 import { UserCircle, Clock, Lock, Star, LogOut, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
+import { ProfileIdentity } from './ProfileIdentity';
 
 export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user) {
+    redirect('/login');
+  }
+
+  const dbUser = await db.user.findUnique({ where: { id: session.user.id } });
+  if (!dbUser) {
     redirect('/login');
   }
 
@@ -52,9 +59,7 @@ export default async function ProfilePage() {
         <main className={styles.content}>
           <div id="profile" className={styles.section}>
             <h3 className={styles.secLabel}>Profile identity</h3>
-            <div className={styles.card}>
-              <p className="text-sm text-muted-foreground">Profile section coming soon...</p>
-            </div>
+            <ProfileIdentity user={dbUser!} />
           </div>
         </main>
       </div>
