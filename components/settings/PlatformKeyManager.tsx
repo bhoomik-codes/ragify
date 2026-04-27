@@ -184,7 +184,7 @@ export function PlatformKeyManager({ initialKeys }: PlatformKeyManagerProps) {
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
             <Button onClick={() => setRevealedKey(null)}>
-              I've copied the key
+              I&apos;ve copied the key
             </Button>
           </div>
         </div>

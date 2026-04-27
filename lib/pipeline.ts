@@ -13,7 +13,9 @@ import { serializeVector } from "@/lib/vector";
 import { embedText, isEmbeddingAvailable, DEFAULT_EMBEDDING_MODEL } from "@/lib/embeddings";
 import * as fs from "node:fs";
 import { PDFParse } from "pdf-parse";
-import { parseOffice } from "officeparser";
+// `officeparser` currently pulls dependencies that break Next/SWC builds.
+// Mammoth is already in this repo and works well for DOCX raw text extraction.
+import mammoth from "mammoth";
 
 export interface DocumentChunk {
   content: string;
@@ -171,7 +173,12 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
           throw new Error("PDF could not be parsed — the file may be corrupt.");
         }
       } else if (ext === "docx") {
-        textChunkRaw = (await parseOffice(filePath)) as unknown as string;
+        try {
+          const result = await mammoth.extractRawText({ path: filePath });
+          textChunkRaw = result.value ?? "";
+        } catch (docxErr) {
+          throw new Error("DOCX could not be parsed — the file may be corrupt.");
+        }
       } else {
         throw new Error(`Unsupported file type: .${ext}`);
       }

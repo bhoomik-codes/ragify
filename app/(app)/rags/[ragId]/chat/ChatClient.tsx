@@ -86,18 +86,18 @@ export function ChatClient({
   const [conversations, setConversations] = React.useState<any[]>([]);
   const [activeConversationId, setActiveConversationId] = React.useState<string | undefined>(undefined);
 
-  const fetchConversations = async () => {
+  const fetchConversations = React.useCallback(async () => {
     try {
       const res = await fetch(`/api/rags/${ragId}/conversations`);
       if (res.ok) {
         setConversations(await res.json());
       }
     } catch (e) {}
-  };
+  }, [ragId]);
 
   useEffect(() => {
     fetchConversations();
-  }, [ragId]);
+  }, [fetchConversations]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -288,7 +288,7 @@ export function ChatClient({
               <MessageSquareText size={48} strokeWidth={1} />
             </div>
             <h3>Welcome to {ragName}</h3>
-            <p>I'm ready to help you with your documents. Choose a suggestion or type your own question below.</p>
+            <p>I&apos;m ready to help you with your documents. Choose a suggestion or type your own question below.</p>
             
             <div className={styles.suggestionsContainer}>
               {[

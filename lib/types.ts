@@ -257,8 +257,7 @@ export interface WizardStep5 {
 }
 
 /** Step 6 — Review & confirm (no extra fields — just a confirmation gate). */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface WizardStep6 {}
+export type WizardStep6 = {};
 
 /** Complete wizard form state — intersection of all six steps. */
 export type WizardFormData = WizardStep1 &
