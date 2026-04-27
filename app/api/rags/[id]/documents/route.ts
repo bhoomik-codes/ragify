@@ -28,9 +28,16 @@ export async function POST(
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
     // Validate file type
-    const allowedTypes = ['text/plain', 'text/markdown', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt') && !file.name.endsWith('.md')) {
-      return NextResponse.json({ error: 'Unsupported file type. Use TXT, MD, or PDF.' }, { status: 415 });
+    const allowedTypes = [
+      'text/plain', 
+      'text/markdown', 
+      'application/pdf', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation' // pptx
+    ];
+    
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(txt|md|csv|pdf|docx|pptx)$/i)) {
+      return NextResponse.json({ error: 'Unsupported file type. Use TXT, MD, CSV, PDF, DOCX, or PPTX.' }, { status: 415 });
     }
 
     // Max 10MB guard

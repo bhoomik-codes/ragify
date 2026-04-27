@@ -77,6 +77,7 @@ export async function POST(
 
     const messages = result.data.messages as Array<{role: string, content: string}>;
     const modelOverride = (json as any).model as string | undefined;
+    const providerOverride = (json as any).provider as string | undefined;
     let conversationId = (json as any).conversationId as string | undefined;
 
     // Safely enforce dynamic Conversation container tracking internally if unmapped originally
@@ -130,14 +131,40 @@ export async function POST(
         });
       }
 
+      // Broad query fallback: if still no chunks match (e.g. "summarize the documents"),
+      // just fetch the first few chunks of the available documents.
+      if (matchedChunks.length === 0) {
+        matchedChunks = await db.chunk.findMany({
+          where: {
+            document: {
+              ragId: id,
+              status: 'READY',
+            },
+            index: { lte: 2 } // First 3 chunks of each document
+          },
+          take: rag.topK,
+          orderBy: { index: 'asc' },
+        });
+      }
+
       if (matchedChunks.length > 0) {
         contextualSnippets = "\n\nRetrieved Context:\n" + matchedChunks.map(c => `[Context Snippet]\n${c.content}`).join("\n\n");
       }
     }
 
+    const readyDocs = await db.document.findMany({
+      where: { ragId: id, status: 'READY' },
+      select: { name: true }
+    });
+    const docNames = readyDocs.map(d => `"${d.name}"`).join(', ');
+
     let finalSystemPrompt = rag.systemPrompt 
       ? `You are ${rag.name}. ${rag.systemPrompt}` 
       : `You are ${rag.name}, an intelligent and helpful AI assistant powered by the Ragify platform.`;
+
+    if (docNames) {
+      finalSystemPrompt += `\n\nYou have access to the following documents in your knowledge base: ${docNames}.`;
+    }
     
     // Safety strict injections appending parameters
     if (rag.strictMode) {
@@ -148,31 +175,33 @@ export async function POST(
        finalSystemPrompt += contextualSnippets;
     }
 
+    // Effective provider from client override, or fallback to the rag default
+    const effectiveProvider = (providerOverride || rag.provider) as string;
+
     // Retrieve Key securely decrypting AES mappings 
     const userApiKey = await db.userApiKey.findUnique({
-       where: { userId_provider: { userId: session.user.id, provider: rag.provider } }
+       where: { userId_provider: { userId: session.user.id, provider: effectiveProvider } }
     });
 
     const isMockMode = process.env.MOCK_MODE === "true";
 
     // LOCAL provider (Ollama) needs no API key
-    const effectiveProvider = (modelOverride ? rag.provider : rag.provider) as string;
     const isLocalProvider = effectiveProvider === 'LOCAL';
 
     const keyResolution = isMockMode
       ? { key: "mock-key", isFromPlatform: false }
       : isLocalProvider
         ? { key: "ollama", isFromPlatform: false }
-        : resolveProviderKey(session.user.id, userApiKey, rag.provider);
+        : resolveProviderKey(session.user.id, userApiKey, effectiveProvider);
 
     if (!keyResolution) {
-      return NextResponse.json({ error: "no_api_key", provider: rag.provider }, { status: 402 });
+      return NextResponse.json({ error: "no_api_key", provider: effectiveProvider }, { status: 402 });
     }
 
     const startTime = Date.now();
     const stream = await ragStream({
       messages,
-      provider: rag.provider as import('@/lib/types').Provider,
+      provider: effectiveProvider as import('@/lib/types').Provider,
       model: modelOverride || rag.model,
       apiKey: keyResolution.key,
       systemPrompt: finalSystemPrompt,
@@ -209,7 +238,11 @@ export async function POST(
       }
     });
 
-    return stream.toDataStreamResponse();
+    return stream.toDataStreamResponse({
+      headers: {
+        'x-conversation-id': conversationId as string
+      }
+    });
 
   } catch (error) {
     // Classified LLM errors — return structured responses to the client

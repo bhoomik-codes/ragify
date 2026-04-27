@@ -5,7 +5,7 @@ import { useChat } from 'ai/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
-import { ArrowLeft, MessageSquareText, Settings } from 'lucide-react';
+import { ArrowLeft, MessageSquareText, Settings, Menu, Plus, MessageSquare } from 'lucide-react';
 import styles from './Chat.module.css';
 
 type LlmErrorCode = 'INVALID_API_KEY' | 'CREDITS_EXHAUSTED' | 'MODEL_NOT_FOUND' | 'RATE_LIMIT' | 'CONTEXT_OVERFLOW' | 'PROVIDER_ERROR';
@@ -82,6 +82,23 @@ export function ChatClient({
   const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadMessage, setUploadMessage] = React.useState<string>('');
 
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [conversations, setConversations] = React.useState<any[]>([]);
+  const [activeConversationId, setActiveConversationId] = React.useState<string | undefined>(undefined);
+
+  const fetchConversations = async () => {
+    try {
+      const res = await fetch(`/api/rags/${ragId}/conversations`);
+      if (res.ok) {
+        setConversations(await res.json());
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    fetchConversations();
+  }, [ragId]);
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -139,10 +156,51 @@ export function ChatClient({
     }
   };
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
+  const selectedProvider = React.useMemo(() => {
+    for (const [provider, config] of Object.entries(MODEL_REGISTRY)) {
+      if (config.models.includes(selectedModel)) {
+        return provider;
+      }
+    }
+    return initialProvider;
+  }, [selectedModel, initialProvider]);
+
+  const { messages, setMessages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
     api: `/api/rags/${ragId}/chat`,
-    body: { model: selectedModel }
+    body: { model: selectedModel, provider: selectedProvider, conversationId: activeConversationId },
+    onResponse: (res) => {
+      const headerId = res.headers.get('x-conversation-id');
+      if (headerId && headerId !== activeConversationId) {
+        setActiveConversationId(headerId);
+        fetchConversations(); // refresh list
+      }
+    }
   });
+
+  const loadConversation = async (convId: string) => {
+    try {
+      const res = await fetch(`/api/rags/${ragId}/conversations/${convId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.messages.map((m: any) => ({
+          id: m.id,
+          role: m.role.toLowerCase(),
+          content: m.content
+        }));
+        setMessages(formatted);
+        setActiveConversationId(convId);
+      }
+      setSidebarOpen(false);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const createNewChat = () => {
+    setMessages([]);
+    setActiveConversationId(undefined);
+    setSidebarOpen(false);
+  };
   
   const endRef = useRef<HTMLDivElement>(null);
   
@@ -151,13 +209,48 @@ export function ChatClient({
   }, [messages]);
 
   return (
-    <div className={styles.chatContainer}>
-      <header className={styles.chatHeader}>
-        <div className={styles.headerContent}>
-          <Link href="/dashboard" className={styles.backLink}>
-            <ArrowLeft size={18} />
-            <span className={styles.backText}>Dashboard</span>
-          </Link>
+    <div className={styles.chatContainer} style={{ flexDirection: 'row' }}>
+      {/* Sidebar */}
+      {sidebarOpen && (
+        <div style={{ width: '260px', background: 'var(--bg-card)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '8px' }}>
+            <button onClick={createNewChat} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px', background: 'var(--text)', color: 'var(--bg)', borderRadius: 'var(--radius)', border: 'none', cursor: 'pointer' }}>
+              <Plus size={16} /> New Chat
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+            <h4 style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>Recent</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {conversations.map(c => (
+                <button 
+                  key={c.id} 
+                  onClick={() => loadConversation(c.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: 'var(--radius)', border: 'none', background: activeConversationId === c.id ? 'var(--bg-hover)' : 'transparent', color: 'var(--text)', cursor: 'pointer', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
+                  <MessageSquare size={14} style={{ flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.title || 'New Conversation'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <header className={styles.chatHeader}>
+          <div className={styles.headerContent}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <button 
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Menu size={20} />
+              </button>
+              <Link href="/dashboard" className={styles.backLink}>
+                <ArrowLeft size={18} />
+              </Link>
+            </div>
           <div className={styles.ragIdentity}>
             <span className={styles.ragEmoji}>{ragEmoji}</span>
             <h2 className={styles.ragTitle}>{ragName}</h2>
@@ -358,10 +451,12 @@ export function ChatClient({
         </div>
       </div>
 
+      </div>
+
       <input
         ref={fileInputRef}
         type="file"
-        accept=".txt,.md,.pdf,.docx"
+        accept=".txt,.md,.csv,.pdf,.docx,.pptx"
         style={{ display: 'none' }}
         onChange={handleFileUpload}
       />

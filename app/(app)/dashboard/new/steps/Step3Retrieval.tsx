@@ -12,12 +12,21 @@ export function Step3Retrieval() {
       <h2 style={{ marginBottom: '24px', fontSize: '1.25rem', color: 'var(--text)' }}>Retrieval Settings</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-        <Input 
-          label="Embedding Model" 
-          placeholder="text-embedding-3-small" 
-          value={data.embeddingModel}
-          onChange={(e) => updateData({ embeddingModel: e.target.value })}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text)' }}>Embedding Model</label>
+          <select 
+            value={data.embeddingModel}
+            onChange={(e) => updateData({ embeddingModel: e.target.value })}
+            style={{ padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text)' }}
+          >
+            <option value="text-embedding-3-small">text-embedding-3-small (OpenAI)</option>
+            <option value="text-embedding-3-large">text-embedding-3-large (OpenAI)</option>
+            <option value="text-embedding-ada-002">text-embedding-ada-002 (OpenAI)</option>
+            <option value="qwen3-embedding">qwen3-embedding (Local/Ollama)</option>
+            <option value="nomic-embed-text">nomic-embed-text (Local/Ollama)</option>
+            <option value="mxbai-embed-large">mxbai-embed-large (Local/Ollama)</option>
+          </select>
+        </div>
 
         <div style={{ display: 'flex', gap: '16px' }}>
           <div style={{ flex: 1 }}>

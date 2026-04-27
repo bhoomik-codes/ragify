@@ -13,7 +13,7 @@ import { Card } from '../../../../components/ui/Card';
 import { useRouter } from 'next/navigation';
 import { PipelineStatus } from '../../../../components/ui/PipelineStatus/PipelineStatus';
 
-export function WizardForm() {
+export function WizardForm({ isEdit = false, ragId = null }: { isEdit?: boolean, ragId?: string | null }) {
   const { step, nextStep, prevStep, data, reset, files, setFiles } = useWizardStore();
   const router = useRouter();
   const [submissionPhase, setSubmissionPhase] = useState<'IDLE' | 'CREATING_RAG' | 'UPLOADING' | 'DONE'>('IDLE');
@@ -23,8 +23,8 @@ export function WizardForm() {
     setSubmissionPhase('CREATING_RAG');
     setError(null);
     try {
-      const res = await fetch('/api/rags', {
-        method: 'POST',
+      const res = await fetch(isEdit ? `/api/rags/${ragId}` : '/api/rags', {
+        method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });

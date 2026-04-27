@@ -12,6 +12,8 @@ import { db } from "@/lib/db";
 import { serializeVector } from "@/lib/vector";
 import { embedText, isEmbeddingAvailable, DEFAULT_EMBEDDING_MODEL } from "@/lib/embeddings";
 import * as fs from "node:fs";
+const pdfParse = require("pdf-parse");
+import { parseOffice } from "officeparser";
 
 export interface ExtractedDocument {
   text: string;
@@ -101,8 +103,16 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
     let textChunkRaw = "";
 
     // Parse text from file based on extension
-    if (documentRecord.name.endsWith(".txt") || documentRecord.name.endsWith(".md")) {
+    const ext = documentRecord.name.split('.').pop()?.toLowerCase();
+
+    if (ext === "txt" || ext === "md" || ext === "csv") {
        textChunkRaw = fs.readFileSync(filePath, "utf-8");
+    } else if (ext === "pdf") {
+       const buffer = fs.readFileSync(filePath);
+       const pdfData = await pdfParse(buffer);
+       textChunkRaw = pdfData.text;
+    } else if (ext === "docx" || ext === "pptx") {
+       textChunkRaw = await parseOffice(filePath) as unknown as string;
     } else {
        const buffer = fs.readFileSync(filePath);
        const obj = await extractText(buffer.buffer as ArrayBuffer, documentRecord.type);
