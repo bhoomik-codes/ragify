@@ -12,13 +12,8 @@ import { db } from "@/lib/db";
 import { serializeVector } from "@/lib/vector";
 import { embedText, isEmbeddingAvailable, DEFAULT_EMBEDDING_MODEL } from "@/lib/embeddings";
 import * as fs from "node:fs";
-const pdfParse = require("pdf-parse");
+import { PDFParse } from "pdf-parse";
 import { parseOffice } from "officeparser";
-
-export interface ExtractedDocument {
-  text: string;
-  metadata: Record<string, string>;
-}
 
 export interface DocumentChunk {
   content: string;
@@ -30,19 +25,6 @@ export interface DocumentChunk {
 export interface ChunkEmbedding {
   chunkId: string;
   vector: number[];
-}
-
-/**
- * Parses raw file bytes into text.
- * Currently handles .txt/.md natively; PDF/DOCX returns placeholder.
- */
-export async function extractText(fileBuffer: ArrayBuffer, mimeType: string): Promise<ExtractedDocument> {
-  await new Promise(r => setTimeout(r, Number(process.env.MOCK_PIPELINE_DELAY_MS || 100)));
-
-  return {
-    text: "This is a placeholder extracted document. Replace with real PDF/DOCX parsing (e.g., pdf-parse).",
-    metadata: { mimeType, status: "extracted" },
-  };
 }
 
 /**
@@ -181,7 +163,9 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
       } else if (ext === "pdf") {
         const buffer = fs.readFileSync(filePath);
         try {
-          const pdfData = await pdfParse(buffer);
+          const parser = new PDFParse({ data: buffer });
+          const pdfData = await parser.getText();
+          await parser.destroy();
           textChunkRaw = pdfData.text;
         } catch (pdfErr) {
           throw new Error("PDF could not be parsed — the file may be corrupt.");

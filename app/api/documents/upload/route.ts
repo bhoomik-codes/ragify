@@ -1,4 +1,4 @@
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { runIngestionPipeline } from "@/lib/pipeline";
@@ -142,26 +142,6 @@ export async function POST(request: Request) {
         }
       }
     };
-
-    // In serverless environments, a detached Promise may be terminated when the response is sent.
-    // Prefer `after()` (waitUntil pattern). If unavailable, run synchronously before responding.
-    let scheduled = false;
-    if (typeof after === "function") {
-      after(ingestionTask);
-      scheduled = true;
-    }
-
-    if (scheduled) {
-      return NextResponse.json(
-        {
-          documentId: document.id,
-          name: document.name,
-          size: document.size,
-          status: "QUEUED",
-        },
-        { status: 201 },
-      );
-    }
 
     await ingestionTask();
     const updated = await db.document.findUnique({ where: { id: document.id } });
