@@ -52,6 +52,7 @@ export async function POST(request: Request) {
         ...payload,
         tags: payload.tags ?? [], // Ensure array default for Prisma Json mapping
         userId: session.user.id,
+        status: "READY",
       },
     });
 

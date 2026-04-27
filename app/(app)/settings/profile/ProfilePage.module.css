@@ -1,0 +1,117 @@
+.shell {
+  display: flex;
+  min-height: 820px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-card);
+  margin: 1rem 0;
+}
+
+.nav {
+  width: 176px;
+  flex-shrink: 0;
+  border-right: 0.5px solid var(--border);
+  background: var(--bg-card);
+  padding: 1rem 0;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.navItem:hover {
+  background: var(--bg-hover);
+}
+
+.navItem.active {
+  background: var(--bg-default);
+  color: var(--text);
+  font-weight: 500;
+  border-right: 2px solid var(--accent);
+}
+
+.navIcon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.navItem.active .navIcon {
+  opacity: 1;
+}
+
+.navSep {
+  height: 0.5px;
+  background: var(--border);
+  margin: 8px 16px;
+}
+
+.content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+.section {
+  margin-bottom: 1.75rem;
+}
+
+.secLabel {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 0.5px solid var(--border);
+  padding: 1rem 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Responsive collapse below 640px as per Section 9 */
+@media (max-width: 640px) {
+  .shell {
+    flex-direction: column;
+    min-height: auto;
+  }
+  .nav {
+    width: 100%;
+    border-right: none;
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    overflow-x: auto;
+    padding: 0.5rem;
+  }
+  .navItem {
+    width: auto;
+    white-space: nowrap;
+    border-right: none !important;
+    border-bottom: 2px solid transparent;
+  }
+  .navItem.active {
+    border-bottom: 2px solid var(--accent);
+  }
+  .navSep {
+    width: 0.5px;
+    height: 24px;
+    margin: 0 8px;
+  }
+}

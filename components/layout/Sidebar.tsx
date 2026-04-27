@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, Menu, X, LogOut, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Settings, Menu, X, LogOut, BarChart3, UserCircle } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import styles from './Sidebar.module.css';
 
@@ -14,6 +14,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { label: 'Profile', href: '/settings/profile', icon: UserCircle },
     { label: 'Settings', href: '/settings', icon: Settings },
   ];
 
@@ -45,7 +46,7 @@ export const Sidebar: React.FC = () => {
 
         <nav className={styles.nav}>
           {navItems.map((item) => {
-            const isActive = pathname?.startsWith(item.href);
+            const isActive = pathname === item.href || (item.href !== '/settings' && pathname?.startsWith(item.href));
             return (
               <Link 
                 key={item.href} 
