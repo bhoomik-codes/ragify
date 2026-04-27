@@ -226,6 +226,7 @@ ragify/
 | `npm run build` | Create an optimized production build |
 | `npm start` | Run the production build |
 | `npm run lint` | Run ESLint checks |
+| `npm test` | Run unit tests (Vitest) |
 | `npx prisma studio` | Open Prisma's visual database browser |
 | `npx prisma db push` | Push schema changes to the database |
 | `npx tsc --noEmit` | Type-check the project without emitting files |
@@ -255,12 +256,34 @@ ragify/
 
 ## 📝 Changelog
 
-### v0.2.0 - Recent Updates
-- **Enhanced Chat Experience**: Introduced a collapsible sidebar for managing conversation history, allowing users to seamlessly resume previous chats or start new ones.
+### v0.2.1 - Recent Updates
+
+- **Ingestion reliability**: Upload ingestion no longer detaches a background promise that can be killed in serverless runtimes; temp files are always cleaned up.
+- **No-context handling**: Removed the “stuff the first 3 chunks” fallback; unrelated questions now return a neutral “no relevant information found” response.
+- **Upload security**:
+  - Filename sanitization + upload-dir containment to prevent path traversal
+  - Strict allowlist validation (415) for: `.txt` / `.md` / `.pdf` / `.docx` / `.csv`
+  - 10MB max upload size (413) + basic per-user upload rate limit (429)
+- **Performance**:
+  - Vector retrieval yields to the event loop during similarity scoring and caps embeddings per query (with pgvector migration guidance in `FUTURE_PLAN.md`)
+  - Keyword fallback upgraded to SQLite **FTS5** (with raw SQL migration + safe fallback if not applied)
+- **Pipeline quality & resilience**:
+  - Semantic chunking (paragraph → line → sentence → word) with overlap preservation
+  - Extraction failures mark the document as `FAILED` with a human-readable `errorMessage`
+- **Tests & maintenance**:
+  - Added unit tests for vector utilities + chunking
+  - Standardized module imports and added a minimal Vitest runner (`npm test`)
+
+### v0.2.0 - List of Updates
+
+- **Enhanced Chat Experience**: Introduced a collapsible sidebar for managing conversation history, allowing users to seamlessly
+resume previous chats or start new ones.
 - **Bot Lifecycle Management**: Added Edit and Delete functionality directly from the dashboard bot cards.
-- **Improved RAG Creation Wizard**: Integrated dropdowns for model selection based on providers, and added an interactive emoji picker for bot avatars.
+- **Improved RAG Creation Wizard**: Integrated dropdowns for model selection based on providers, and added an interactive emoji
+picker for bot avatars.
 - **Local Model Support**: Added support for local Ollama models (including Qwen3 and Deepseek) alongside cloud providers.
-- **Secure File Uploads**: Users can now upload various documents (.txt, .md, .csv, .pdf, .docx, .pptx) directly into an active chat context.
+- **Secure File Uploads**: Users can now upload various documents (.txt, .md, .csv, .pdf, .docx, .pptx) directly into an active
+chat context.
 
 ---
 
@@ -288,9 +311,11 @@ The validator trims whitespace automatically. If the error persists, check that 
 <summary><b>ENCRYPTION_KEY errors on startup</b></summary>
 
 The key must be exactly 64 hex characters. Generate one with:
+
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+
 </details>
 
 ---
