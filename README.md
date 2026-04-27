@@ -244,10 +244,23 @@ ragify/
 - [x] Bot parameter tuning panel
 - [x] In-chat document upload
 - [x] Granular LLM error classification
+- [x] Dashboard Bot Management (Edit/Delete)
+- [x] Chat History Sidebar & Resumption
 - [ ] Real embedding API integration (replace keyword search)
 - [ ] Analytics dashboard (token usage, response times)
 - [ ] Public RAG sharing links
 - [ ] S3/R2 object storage for documents
+
+---
+
+## 📝 Changelog
+
+### v0.2.0 - Recent Updates
+- **Enhanced Chat Experience**: Introduced a collapsible sidebar for managing conversation history, allowing users to seamlessly resume previous chats or start new ones.
+- **Bot Lifecycle Management**: Added Edit and Delete functionality directly from the dashboard bot cards.
+- **Improved RAG Creation Wizard**: Integrated dropdowns for model selection based on providers, and added an interactive emoji picker for bot avatars.
+- **Local Model Support**: Added support for local Ollama models (including Qwen3 and Deepseek) alongside cloud providers.
+- **Secure File Uploads**: Users can now upload various documents (.txt, .md, .csv, .pdf, .docx, .pptx) directly into an active chat context.
 
 ---
 
