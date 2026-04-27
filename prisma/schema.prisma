@@ -167,6 +167,8 @@ model Document {
   status     DocumentStatus @default(QUEUED)
   chunkCount Int            @default(0)
   errorMessage String?
+  storageProvider String     @default("local")
+  storageKey      String?
   metadata   Json?          // typed as DocumentMetadata in lib/types.ts
 
   createdAt DateTime @default(now())

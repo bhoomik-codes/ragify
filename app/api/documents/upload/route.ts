@@ -2,14 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { runIngestionPipeline } from "@/lib/pipeline";
-import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
+import { getStorage } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
-const UPLOAD_DIR = "/tmp/ragify-uploads/";
 const UPLOADS_PER_MINUTE = 10;
 const RATE_WINDOW_MS = 60_000;
 
@@ -95,25 +94,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Prepare Local Node `/tmp/` staging mimicking Object stores sequentially
-    if (!fs.existsSync(UPLOAD_DIR)) {
-      fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-    }
-
-    const safeFileName = `${randomUUID()}_${sanitizedBaseName}`;
-    const uploadDirResolved = path.resolve(UPLOAD_DIR);
-    const filePath = path.resolve(uploadDirResolved, safeFileName);
-    if (!filePath.startsWith(uploadDirResolved + path.sep)) {
-      return NextResponse.json(
-        { error: "Invalid file name" },
-        { status: 400 },
-      );
-    }
-    
     // Explicit Node extraction allocating blobs successfully mapping RAM limits cleanly
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    fs.writeFileSync(filePath, buffer);
+
+    const storage = getStorage();
+    const storageKey = `documents/${ragId}/${randomUUID()}_${sanitizedBaseName}`;
+    await storage.putObject({ key: storageKey, body: buffer, contentType: file.type });
 
     // Initial persistence natively setting structures immediately resolving UI constraints
     const document = await db.document.create({
@@ -123,23 +110,18 @@ export async function POST(request: Request) {
         size: file.size,
         type: file.type,
         status: "QUEUED",
+        storageProvider: storage.provider,
+        storageKey,
         metadata: { mimeType: file.type }
       }
     });
 
     const ingestionTask = async () => {
       try {
-        await runIngestionPipeline(document.id, filePath);
+        await runIngestionPipeline(document.id);
       } catch (err) {
         // Note: `runIngestionPipeline` already marks the document as FAILED.
         console.error("[PIPELINE_ERROR]", err);
-      } finally {
-        // Always clean up temp file, regardless of pipeline success/failure.
-        try {
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        } catch (cleanupErr) {
-          console.error("[UPLOAD_CLEANUP_ERROR] Failed to remove temp file", filePath, cleanupErr);
-        }
       }
     };
 

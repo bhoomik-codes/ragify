@@ -61,6 +61,29 @@ export interface MessageSource {
   score   : number; // cosine similarity, 0–1
 }
 
+// ---------------------------------------------------------------------------
+// Retrieval contract
+// ---------------------------------------------------------------------------
+
+/**
+ * Retrieval sources supported by Ragify.
+ * - `vector`: dense vector search over stored embeddings (SQLite JSON vectors in dev).
+ * - `fts`: sparse keyword search via SQLite FTS5 fallback.
+ */
+export type RetrievalSource = "vector" | "fts";
+
+/**
+ * A single retrieved chunk used to build LLM context.
+ * This is an internal contract (not a DB row shape).
+ */
+export interface RetrievedChunk {
+  chunkId    : string;
+  documentId : string;
+  content    : string;
+  score?     : number; // present for vector results
+  source     : RetrievalSource;
+}
+
 /**
  * Optional per-document metadata stored in `Document.metadata`.
  * Extensible — add fields without a migration.

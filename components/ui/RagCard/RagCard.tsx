@@ -6,11 +6,65 @@ import { Badge } from '../Badge';
 import { StatusBadge } from '../../shared/StatusBadge';
 import type { RagDto } from '../../../lib/types';
 import styles from './RagCard.module.css';
-import { MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { MoreVertical, Edit2, Trash2, Share2, Link as LinkIcon } from 'lucide-react';
 
 export function RagCard({ rag }: { rag: RagDto }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      const password = window.prompt(
+        "Optional: set a password for this share link (min 8 chars). Leave blank for no password.",
+        "",
+      );
+      const body: any = {};
+      if (password && password.length > 0) body.password = password;
+
+      const res = await fetch(`/api/rags/${rag.id}/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? "Failed to create share link");
+
+      const url = `${window.location.origin}/share/${json.token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        alert("Share link copied to clipboard.");
+      } catch {
+        window.prompt("Copy your share link:", url);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to create share link");
+    } finally {
+      setMenuOpen(false);
+    }
+  };
+
+  const handleRevokeShares = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!confirm("Revoke ALL share links for this RAG?")) return;
+    try {
+      const res = await fetch(`/api/rags/${rag.id}/share`);
+      const links = await res.json();
+      if (!res.ok) throw new Error(links?.error ?? "Failed to load share links");
+      await Promise.all(
+        (links as Array<{ id: string }>).map((l) =>
+          fetch(`/api/rags/${rag.id}/share/${l.id}`, { method: "DELETE" }),
+        ),
+      );
+      alert("Share links revoked.");
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to revoke share links");
+    } finally {
+      setMenuOpen(false);
+    }
+  };
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -56,6 +110,18 @@ export function RagCard({ rag }: { rag: RagDto }) {
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--text)', fontSize: '0.875rem' }}
                 >
                   <Edit2 size={14} /> Edit
+                </button>
+                <button
+                  onClick={handleShare}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--text)', fontSize: '0.875rem' }}
+                >
+                  <Share2 size={14} /> Share
+                </button>
+                <button
+                  onClick={handleRevokeShares}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--text)', fontSize: '0.875rem' }}
+                >
+                  <LinkIcon size={14} /> Revoke Links
                 </button>
                 <button
                   onClick={handleDelete}

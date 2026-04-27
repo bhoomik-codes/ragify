@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { runIngestionPipeline } from '@/lib/pipeline';
-import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
+import { randomUUID } from 'node:crypto';
+import { getStorage } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 
@@ -33,11 +33,10 @@ export async function POST(
       'text/markdown', 
       'application/pdf', 
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation' // pptx
     ];
     
-    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(txt|md|csv|pdf|docx|pptx)$/i)) {
-      return NextResponse.json({ error: 'Unsupported file type. Use TXT, MD, CSV, PDF, DOCX, or PPTX.' }, { status: 415 });
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(txt|md|csv|pdf|docx)$/i)) {
+      return NextResponse.json({ error: 'Unsupported file type. Use TXT, MD, CSV, PDF, or DOCX.' }, { status: 415 });
     }
 
     // Max 10MB guard
@@ -45,11 +44,14 @@ export async function POST(
       return NextResponse.json({ error: 'File too large. Maximum size is 10MB.' }, { status: 413 });
     }
 
-    // Write to temp file
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const tmpPath = path.join(os.tmpdir(), `rag_upload_${Date.now()}_${file.name.replace(/[^a-z0-9._-]/gi, '_')}`);
-    fs.writeFileSync(tmpPath, buffer);
+
+    const clientName = typeof file.name === "string" ? file.name : "upload";
+    const sanitizedBaseName = path.basename(clientName);
+    const storage = getStorage();
+    const storageKey = `documents/${params.id}/${randomUUID()}_${sanitizedBaseName}`;
+    await storage.putObject({ key: storageKey, body: buffer, contentType: file.type });
 
     // Create DB document record
     const document = await db.document.create({
@@ -59,20 +61,21 @@ export async function POST(
         size: file.size,
         type: file.type || 'text/plain',
         status: 'QUEUED',
+        storageProvider: storage.provider,
+        storageKey,
+        metadata: { mimeType: file.type || 'text/plain' } as any,
       },
     });
 
-    // Fire-and-forget ingestion (non-blocking)
-    runIngestionPipeline(document.id, tmpPath).catch(err =>
-      console.error('[CHAT_UPLOAD_PIPELINE_ERROR]', err)
-    );
+    await runIngestionPipeline(document.id);
+    const updated = await db.document.findUnique({ where: { id: document.id } });
 
     return NextResponse.json({
       id: document.id,
       name: document.name,
-      status: 'QUEUED',
-      message: 'Document upload started. It will be available shortly.',
-    }, { status: 202 });
+      status: updated?.status ?? 'QUEUED',
+      message: 'Document upload completed.',
+    }, { status: 200 });
 
   } catch (error) {
     console.error('[CHAT_DOCUMENT_UPLOAD_ERROR]', error);

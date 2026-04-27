@@ -26,6 +26,7 @@ prisma/dev.db-journal
 
 # ── AI / Agent Artifacts ────────────────────────────────────────────────
 .gemini/
+.cursor/
 AGENTS.md
 CLAUDE.md
 ragify_knowledge_base.md
@@ -33,6 +34,7 @@ implementation_plan.md
 *_prompt.md
 *_checklist*.md
 *_audit*.md
+FUTURE_PLAN.md
 
 # ── OS / IDE ────────────────────────────────────────────────────────────
 .DS_Store
@@ -64,3 +66,16 @@ next-env.d.ts
 # ── Temp uploads ────────────────────────────────────────────────────────
 /tmp/
 AUDIT_REPORT.md
+sample_docs/
+sample.txt
+sample.md
+sample.pdf
+sample.docx
+sample.pptx
+sample.csv
+sample.json
+sample.xml
+sample.yaml
+sample.yml
+sample.html
+sample.css

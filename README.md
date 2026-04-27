@@ -113,6 +113,12 @@ Once running, navigate to **Settings → Provider Keys** in the app. Add your AP
 
 ## 🏛️ Architecture
 
+### Retrieval flow (high level)
+
+- **Vector search first**: if an embedding model is available, Ragify embeds the user query and retrieves the top-K most similar chunks.
+- **Keyword fallback**: if vector retrieval is unavailable or returns no results, Ragify falls back to SQLite **FTS5** keyword search.
+- **No-context response**: if both return no matches, Ragify responds neutrally instead of injecting arbitrary chunks into the context window.
+
 ```
 ragify/
 ├── app/

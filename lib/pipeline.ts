@@ -10,12 +10,12 @@
 import type { ChunkMetadata } from "./types";
 import { db } from "@/lib/db";
 import { serializeVector } from "@/lib/vector";
-import { embedText, isEmbeddingAvailable, DEFAULT_EMBEDDING_MODEL } from "@/lib/embeddings";
-import * as fs from "node:fs";
+import { embedBatch, isEmbeddingAvailable, DEFAULT_EMBEDDING_MODEL } from "@/lib/embeddings";
 import { PDFParse } from "pdf-parse";
 // `officeparser` currently pulls dependencies that break Next/SWC builds.
 // Mammoth is already in this repo and works well for DOCX raw text extraction.
 import mammoth from "mammoth";
+import { getStorage } from "@/lib/storage";
 
 export interface DocumentChunk {
   content: string;
@@ -133,13 +133,30 @@ function mockEmbedding(dimension: number = 1536): Float32Array {
   return vec;
 }
 
+type EmbeddingMode = "REAL" | "MOCK";
+
+function withEmbeddingMetadata(
+  existing: unknown,
+  embedding: { mode: EmbeddingMode; model: string; updatedAt: string },
+): Record<string, unknown> {
+  const base =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? (existing as Record<string, unknown>)
+      : {};
+
+  return {
+    ...base,
+    embedding,
+  };
+}
+
 /**
  * Executes the full ingestion pipeline: parse → chunk → embed → store.
  *
  * If Ollama is available with the embedding model, uses real vector embeddings.
  * Otherwise falls back to mock random vectors (keyword search still works).
  */
-export async function runIngestionPipeline(documentId: string, filePath: string): Promise<void> {
+export async function runIngestionPipeline(documentId: string): Promise<void> {
   try {
     await db.document.update({
       where: { id: documentId },
@@ -152,8 +169,12 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
     });
 
     if (!documentRecord) throw new Error("Document not found.");
+    if (!documentRecord.storageKey) throw new Error("Document missing storageKey.");
 
     let textChunkRaw = "";
+
+    const storage = getStorage();
+    const fileBuffer = await storage.getObjectBuffer(documentRecord.storageKey);
 
     // Parse text from file based on extension (strict allowlist)
     const ext = documentRecord.name.split(".").pop()?.toLowerCase();
@@ -161,11 +182,10 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
 
     try {
       if (ext === "txt" || ext === "md" || ext === "csv") {
-        textChunkRaw = fs.readFileSync(filePath, "utf-8");
+        textChunkRaw = fileBuffer.toString("utf-8");
       } else if (ext === "pdf") {
-        const buffer = fs.readFileSync(filePath);
         try {
-          const parser = new PDFParse({ data: buffer });
+          const parser = new PDFParse({ data: fileBuffer });
           const pdfData = await parser.getText();
           await parser.destroy();
           textChunkRaw = pdfData.text;
@@ -174,7 +194,7 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
         }
       } else if (ext === "docx") {
         try {
-          const result = await mammoth.extractRawText({ path: filePath });
+          const result = await mammoth.extractRawText({ buffer: fileBuffer });
           textChunkRaw = result.value ?? "";
         } catch (docxErr) {
           throw new Error("DOCX could not be parsed — the file may be corrupt.");
@@ -213,39 +233,85 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
     // Break text into chunks
     const documentChunks = chunkDocument(textChunkRaw, rag.chunkSize, rag.chunkOverlap);
 
-    for (const chunkData of documentChunks) {
-      // Generate embedding (real or mock)
-      let vector: Float32Array;
-      if (useRealEmbeddings) {
-        vector = await embedText(chunkData.content, embeddingModelName);
-      } else {
-        vector = mockEmbedding();
-      }
+    const nowIso = new Date().toISOString();
+    const embeddingMode: EmbeddingMode = useRealEmbeddings ? "REAL" : "MOCK";
 
-      const recordChunk = await db.chunk.create({
-        data: {
-           documentId,
-           content: chunkData.content,
-           index: chunkData.index,
-           tokenCount: chunkData.tokenCount,
-           metadata: chunkData.metadata as any
-        }
-      });
-
-      await db.embedding.create({
-        data: {
-          chunkId: recordChunk.id,
+    await db.document.update({
+      where: { id: documentId },
+      data: {
+        metadata: withEmbeddingMetadata(documentRecord.metadata, {
+          mode: embeddingMode,
           model: embeddingModelName,
-          vector: serializeVector(vector)
+          updatedAt: nowIso,
+        }) as any,
+      },
+    });
+
+    // Create chunks first (so we have chunk IDs to attach embeddings to).
+    const createdChunks = await Promise.all(
+      documentChunks.map((chunkData) =>
+        db.chunk.create({
+          data: {
+            documentId,
+            content: chunkData.content,
+            index: chunkData.index,
+            tokenCount: chunkData.tokenCount,
+            metadata: chunkData.metadata as any,
+          },
+        }),
+      ),
+    );
+
+    // Generate embeddings (real or mock) and store.
+    const vectors: Float32Array[] = [];
+    if (useRealEmbeddings) {
+      const BATCH_SIZE = 32;
+      try {
+        for (let i = 0; i < documentChunks.length; i += BATCH_SIZE) {
+          const slice = documentChunks.slice(i, i + BATCH_SIZE).map((c) => c.content);
+          const embedded = await embedBatch(slice, embeddingModelName);
+          vectors.push(...embedded);
         }
-      });
+      } catch (e) {
+        console.warn(
+          `[PIPELINE] Real embedding failed; falling back to mock embeddings for Document ${documentId}:`,
+          e,
+        );
+        vectors.length = 0;
+        for (let i = 0; i < documentChunks.length; i++) vectors.push(mockEmbedding());
+
+        await db.document.update({
+          where: { id: documentId },
+          data: {
+            metadata: withEmbeddingMetadata(documentRecord.metadata, {
+              mode: "MOCK",
+              model: embeddingModelName,
+              updatedAt: new Date().toISOString(),
+            }) as any,
+          },
+        });
+      }
+    } else {
+      for (let i = 0; i < documentChunks.length; i++) vectors.push(mockEmbedding());
     }
+
+    await Promise.all(
+      createdChunks.map((recordChunk, idx) =>
+        db.embedding.create({
+          data: {
+            chunkId: recordChunk.id,
+            model: embeddingModelName,
+            vector: serializeVector(vectors[idx]),
+          },
+        }),
+      ),
+    );
 
     await db.document.update({
       where: { id: documentId },
       data: {
         status: "READY",
-        chunkCount: documentChunks.length
+        chunkCount: documentChunks.length,
       }
     });
 
@@ -262,13 +328,5 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
      } catch (e) {
        console.error("Failed to set FAILED status.", e);
      }
-  } finally {
-     // Clean up temp file
-     try {
-       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-     } catch (e) {
-       // Cleanup failures should never mask the original pipeline outcome.
-       console.error("Failed to remove temp file", filePath, e);
-     }
-  }
+  } finally {}
 }

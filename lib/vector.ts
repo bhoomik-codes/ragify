@@ -182,6 +182,9 @@ export async function searchChunks(
     }
 
     const emb = embeddingsToScore[i];
+    const docMeta = (emb.chunk as any)?.document?.metadata as any;
+    if (docMeta?.embedding?.mode === "MOCK") continue;
+
     const vec = deserializeVector(emb.vector);
     const score = cosineSimilarity(queryVector, vec);
     if (score < threshold) continue;

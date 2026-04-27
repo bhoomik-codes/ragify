@@ -3,8 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { chatMessagesSchema } from "@/lib/validators";
 import { decryptKey } from "@/lib/crypto";
-import { searchChunks } from "@/lib/vector";
-import { embedText, isEmbeddingAvailable } from "@/lib/embeddings";
+import { retrieveContext } from "@/lib/retrieval";
 
 import { ragStream, LlmError, type LlmErrorCode } from '@/lib/llm';
 
@@ -93,67 +92,14 @@ export async function POST(
     
     let contextualSnippets = "";
     if (lastUserMessage) {
-      let matchedChunks: Array<{ content: string }> = [];
-
-      // Try real vector search first (if Ollama embedding model is available)
       const embeddingModel = rag.embeddingModel || 'qwen3-embedding';
-      const canEmbed = await isEmbeddingAvailable(embeddingModel);
-
-      if (canEmbed) {
-        try {
-          const queryVector = await embedText(lastUserMessage.content, embeddingModel);
-          matchedChunks = await searchChunks(queryVector, id, rag.topK, rag.threshold);
-        } catch (err) {
-          console.warn('[CHAT] Vector search failed, falling back to keyword search:', err);
-        }
-      }
-
-      // Fallback: keyword-based search if vector search didn't produce results
-      if (matchedChunks.length === 0) {
-        const queryKeywords = lastUserMessage.content
-          .toLowerCase()
-          .replace(/[^\w\s]/g, ' ')
-          .split(/\s+/)
-          .filter(w => w.length > 3);
-
-        const ftsQuery = queryKeywords.join(" OR ");
-
-        if (ftsQuery) {
-          try {
-            matchedChunks = await db.$queryRaw<Array<{ content: string }>>`
-              SELECT c.content as content
-              FROM chunks_fts
-              JOIN Chunk c ON c.rowid = chunks_fts.rowid
-              JOIN Document d ON d.id = c.documentId
-              WHERE d.ragId = ${id}
-                AND d.status = 'READY'
-                AND chunks_fts MATCH ${ftsQuery}
-              LIMIT ${rag.topK}
-            `;
-          } catch (err) {
-            console.warn(
-              "[CHAT] FTS5 keyword search failed; falling back to contains() (did you run the FTS5 migration?):",
-              err,
-            );
-          }
-        }
-
-        if (matchedChunks.length === 0) {
-          matchedChunks = await db.chunk.findMany({
-            where: {
-              document: {
-                ragId: id,
-                status: 'READY',
-              },
-              OR: queryKeywords.length > 0
-                ? queryKeywords.map(kw => ({ content: { contains: kw } }))
-                : undefined,
-            },
-            take: rag.topK,
-            orderBy: { index: 'asc' },
-          });
-        }
-      }
+      const matchedChunks = await retrieveContext({
+        ragId: id,
+        query: lastUserMessage.content,
+        topK: rag.topK,
+        threshold: rag.threshold,
+        embeddingModel,
+      });
 
       // If both vector search and keyword fallback return nothing, do NOT stuff arbitrary chunks
       // into the context window. This degrades answer quality and increases hallucinations.
