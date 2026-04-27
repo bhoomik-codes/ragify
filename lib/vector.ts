@@ -162,19 +162,39 @@ export async function searchChunks(
 
   if (embeddings.length === 0) return [];
 
-  const scored: ChunkWithScore[] = embeddings
-    .map((emb) => {
-      const vec   = deserializeVector(emb.vector);
-      const score = cosineSimilarity(queryVector, vec);
-      return {
-        ...emb.chunk,
-        embedding: emb,
-        score,
-      };
-    })
-    .filter((item) => item.score >= threshold)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
+  // NOTE: This in-process scan is a known scalability ceiling for SQLite.
+  // If you hit this cap, migrate to PostgreSQL + pgvector (see `FUTURE_PLAN.md`).
+  const MAX_EMBEDDINGS_PER_QUERY = 2000;
+  const embeddingsToScore =
+    embeddings.length > MAX_EMBEDDINGS_PER_QUERY
+      ? (console.warn(
+          `[vector] searchChunks: capping embeddings (${embeddings.length} → ${MAX_EMBEDDINGS_PER_QUERY}). ` +
+            "Consider migrating to pgvector (see FUTURE_PLAN.md).",
+        ),
+        embeddings.slice(0, MAX_EMBEDDINGS_PER_QUERY))
+      : embeddings;
+
+  const scored: ChunkWithScore[] = [];
+  for (let i = 0; i < embeddingsToScore.length; i++) {
+    // Yield periodically so long scans don't block the event loop.
+    if (i > 0 && i % 50 === 0) {
+      await new Promise<void>((r) => setImmediate(r));
+    }
+
+    const emb = embeddingsToScore[i];
+    const vec = deserializeVector(emb.vector);
+    const score = cosineSimilarity(queryVector, vec);
+    if (score < threshold) continue;
+
+    scored.push({
+      ...emb.chunk,
+      embedding: emb,
+      score,
+    });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  scored.splice(topK);
 
   return scored;
 }

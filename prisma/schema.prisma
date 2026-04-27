@@ -13,6 +13,13 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
+// SQLite FTS5 notes
+// ---------------------------------------------------------------------------
+// We use an SQLite FTS5 virtual table for keyword fallback search over chunk content.
+// Prisma does not manage FTS5 virtual tables in the schema; see the raw SQL migration
+// under `prisma/migrations/*/migration.sql`.
+
+// ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
 

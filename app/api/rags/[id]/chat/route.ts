@@ -116,19 +116,43 @@ export async function POST(
           .split(/\s+/)
           .filter(w => w.length > 3);
 
-        matchedChunks = await db.chunk.findMany({
-          where: {
-            document: {
-              ragId: id,
-              status: 'READY',
+        const ftsQuery = queryKeywords.join(" OR ");
+
+        if (ftsQuery) {
+          try {
+            matchedChunks = await db.$queryRaw<Array<{ content: string }>>`
+              SELECT c.content as content
+              FROM chunks_fts
+              JOIN Chunk c ON c.rowid = chunks_fts.rowid
+              JOIN Document d ON d.id = c.documentId
+              WHERE d.ragId = ${id}
+                AND d.status = 'READY'
+                AND chunks_fts MATCH ${ftsQuery}
+              LIMIT ${rag.topK}
+            `;
+          } catch (err) {
+            console.warn(
+              "[CHAT] FTS5 keyword search failed; falling back to contains() (did you run the FTS5 migration?):",
+              err,
+            );
+          }
+        }
+
+        if (matchedChunks.length === 0) {
+          matchedChunks = await db.chunk.findMany({
+            where: {
+              document: {
+                ragId: id,
+                status: 'READY',
+              },
+              OR: queryKeywords.length > 0
+                ? queryKeywords.map(kw => ({ content: { contains: kw } }))
+                : undefined,
             },
-            OR: queryKeywords.length > 0
-              ? queryKeywords.map(kw => ({ content: { contains: kw } }))
-              : undefined,
-          },
-          take: rag.topK,
-          orderBy: { index: 'asc' },
-        });
+            take: rag.topK,
+            orderBy: { index: 'asc' },
+          });
+        }
       }
 
       // If both vector search and keyword fallback return nothing, do NOT stuff arbitrary chunks
