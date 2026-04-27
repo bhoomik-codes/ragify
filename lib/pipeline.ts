@@ -49,21 +49,90 @@ export async function extractText(fileBuffer: ArrayBuffer, mimeType: string): Pr
  * Subdivides text into overlapping chunks for embedding.
  */
 export function chunkDocument(text: string, chunkSize: number, overlap: number): DocumentChunk[] {
-  const tokens = text.split(" ");
+  const countWords = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+  const normalize = (s: string) => s.replace(/\s+/g, " ").trim();
+
+  const splitBySentence = (s: string) => {
+    // Split on sentence boundaries while preserving punctuation on the sentence.
+    // Falls back to the full string if no obvious boundary exists.
+    const parts = s.split(/(?<=[.!?])\s+/);
+    return parts.length > 1 ? parts : [s];
+  };
+
+  const recursiveSplit = (s: string, seps: Array<(input: string) => string[]>): string[] => {
+    const normalized = s.trim();
+    if (!normalized) return [];
+    if (countWords(normalized) <= chunkSize) return [normalize(normalized)];
+    if (seps.length === 0) {
+      // Last resort: split by words (still ensures we don't exceed chunk size).
+      const words = normalized.split(/\s+/).filter(Boolean);
+      const out: string[] = [];
+      for (let i = 0; i < words.length; i += chunkSize) {
+        out.push(words.slice(i, i + chunkSize).join(" "));
+      }
+      return out;
+    }
+
+    const [splitter, ...rest] = seps;
+    const pieces = splitter(normalized);
+    if (pieces.length === 1) return recursiveSplit(pieces[0], rest);
+
+    const out: string[] = [];
+    for (const p of pieces) {
+      out.push(...recursiveSplit(p, rest));
+    }
+    return out;
+  };
+
+  const semanticUnits = recursiveSplit(text, [
+    (s) => s.split(/\n\n+/), // paragraphs
+    (s) => s.split(/\n+/), // lines
+    splitBySentence, // sentences
+    (s) => s.split(/\s+/), // words (only reached if sentence still too large)
+  ]).filter(Boolean);
+
   const chunks: DocumentChunk[] = [];
+  let chunkIndex = 0;
 
-  let currentIndex = 0;
-  let chunkId = 0;
+  let i = 0;
+  while (i < semanticUnits.length) {
+    const currentUnits: string[] = [];
+    let currentWordCount = 0;
 
-  while (currentIndex < tokens.length) {
-    const subset = tokens.slice(currentIndex, currentIndex + chunkSize);
+    while (i < semanticUnits.length) {
+      const unit = semanticUnits[i];
+      const unitWords = countWords(unit);
+      if (currentUnits.length > 0 && currentWordCount + unitWords > chunkSize) break;
+      currentUnits.push(unit);
+      currentWordCount += unitWords;
+      i++;
+    }
+
+    const content = normalize(currentUnits.join(" "));
     chunks.push({
-      content: subset.join(" "),
-      index: chunkId++,
-      tokenCount: subset.length,
-      metadata: { section: `section_${chunkId}` }
+      content,
+      index: chunkIndex++,
+      tokenCount: currentWordCount,
+      metadata: { section: `section_${chunkIndex}` },
     });
-    currentIndex += (chunkSize - overlap);
+
+    if (overlap <= 0) continue;
+
+    // For overlap, carry over trailing semantic units whose total word count ≤ overlap.
+    let carryWords = 0;
+    const carryUnits: string[] = [];
+    for (let j = currentUnits.length - 1; j >= 0; j--) {
+      const unit = currentUnits[j];
+      const unitWords = countWords(unit);
+      if (carryWords + unitWords > overlap) break;
+      carryUnits.unshift(unit);
+      carryWords += unitWords;
+    }
+
+    if (carryUnits.length > 0) {
+      // Rewind `i` to re-process the carried units on the next chunk boundary.
+      i -= carryUnits.length;
+    }
   }
 
   return chunks;
@@ -106,16 +175,35 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
     const ext = documentRecord.name.split(".").pop()?.toLowerCase();
     if (!ext) throw new Error("Unsupported file type: missing extension.");
 
-    if (ext === "txt" || ext === "md" || ext === "csv") {
-      textChunkRaw = fs.readFileSync(filePath, "utf-8");
-    } else if (ext === "pdf") {
-      const buffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(buffer);
-      textChunkRaw = pdfData.text;
-    } else if (ext === "docx") {
-      textChunkRaw = (await parseOffice(filePath)) as unknown as string;
-    } else {
-      throw new Error(`Unsupported file type: .${ext}`);
+    try {
+      if (ext === "txt" || ext === "md" || ext === "csv") {
+        textChunkRaw = fs.readFileSync(filePath, "utf-8");
+      } else if (ext === "pdf") {
+        const buffer = fs.readFileSync(filePath);
+        try {
+          const pdfData = await pdfParse(buffer);
+          textChunkRaw = pdfData.text;
+        } catch (pdfErr) {
+          throw new Error("PDF could not be parsed — the file may be corrupt.");
+        }
+      } else if (ext === "docx") {
+        textChunkRaw = (await parseOffice(filePath)) as unknown as string;
+      } else {
+        throw new Error(`Unsupported file type: .${ext}`);
+      }
+    } catch (extractErr) {
+      const message =
+        extractErr instanceof Error ? extractErr.message : "Document could not be parsed.";
+      console.error(`[PIPELINE_ERROR] Extraction failed for Document ${documentId}:`, extractErr);
+      try {
+        await db.document.update({
+          where: { id: documentId },
+          data: { status: "FAILED", errorMessage: message },
+        });
+      } catch (e) {
+        console.error("Failed to set FAILED status with errorMessage.", e);
+      }
+      return;
     }
 
     const { rag } = documentRecord;
@@ -175,7 +263,10 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
      try {
        await db.document.update({
          where: { id: documentId },
-         data: { status: "FAILED" }
+         data: {
+           status: "FAILED",
+           errorMessage: error instanceof Error ? error.message : "Pipeline failed.",
+         }
        });
      } catch (e) {
        console.error("Failed to set FAILED status.", e);
