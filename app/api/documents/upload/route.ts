@@ -10,6 +10,20 @@ export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
 const UPLOAD_DIR = "/tmp/ragify-uploads/";
+const UPLOADS_PER_MINUTE = 10;
+const RATE_WINDOW_MS = 60_000;
+
+const uploadTimestampsByUser = new Map<string, number[]>();
+
+const ALLOWED_MIME_TYPES = new Set([
+  "text/plain", // .txt
+  "text/markdown", // .md
+  "application/pdf", // .pdf
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "text/csv", // .csv
+]);
+
+const ALLOWED_EXTENSIONS = new Set(["txt", "md", "pdf", "docx", "csv"]);
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +31,20 @@ export async function POST(request: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Basic per-user in-memory rate limiting (best-effort; resets on cold start).
+    const now = Date.now();
+    const existing = uploadTimestampsByUser.get(session.user.id) ?? [];
+    const recent = existing.filter((ts) => now - ts < RATE_WINDOW_MS);
+    if (recent.length >= UPLOADS_PER_MINUTE) {
+      uploadTimestampsByUser.set(session.user.id, recent);
+      return NextResponse.json(
+        { error: "Too many uploads. Please wait and try again." },
+        { status: 429 },
+      );
+    }
+    recent.push(now);
+    uploadTimestampsByUser.set(session.user.id, recent);
 
     const formData = await request.formData();
     const ragId = formData.get("ragId") as string;
@@ -28,6 +56,30 @@ export async function POST(request: Request) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json({ error: "File too large" }, { status: 413 });
+    }
+
+    const clientName = typeof file.name === "string" ? file.name : "upload";
+    const sanitizedBaseName = path.basename(clientName);
+    const ext = sanitizedBaseName.split(".").pop()?.toLowerCase() ?? "";
+
+    if (!ALLOWED_EXTENSIONS.has(ext) || !ALLOWED_MIME_TYPES.has(file.type)) {
+      return NextResponse.json(
+        {
+          error: "Unsupported media type",
+          allowed: [
+            { ext: ".txt", mime: "text/plain" },
+            { ext: ".md", mime: "text/markdown" },
+            { ext: ".pdf", mime: "application/pdf" },
+            {
+              ext: ".docx",
+              mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            },
+            { ext: ".csv", mime: "text/csv" },
+          ],
+          received: { name: clientName, mime: file.type },
+        },
+        { status: 415 },
+      );
     }
 
     // Auth ownership block mapped safely avoiding explicit IDOR loops natively
@@ -48,8 +100,15 @@ export async function POST(request: Request) {
       fs.mkdirSync(UPLOAD_DIR, { recursive: true });
     }
 
-    const safeFileName = `${randomUUID()}_${file.name}`;
-    const filePath = path.join(UPLOAD_DIR, safeFileName);
+    const safeFileName = `${randomUUID()}_${sanitizedBaseName}`;
+    const uploadDirResolved = path.resolve(UPLOAD_DIR);
+    const filePath = path.resolve(uploadDirResolved, safeFileName);
+    if (!filePath.startsWith(uploadDirResolved + path.sep)) {
+      return NextResponse.json(
+        { error: "Invalid file name" },
+        { status: 400 },
+      );
+    }
     
     // Explicit Node extraction allocating blobs successfully mapping RAM limits cleanly
     const arrayBuffer = await file.arrayBuffer();

@@ -102,21 +102,20 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
 
     let textChunkRaw = "";
 
-    // Parse text from file based on extension
-    const ext = documentRecord.name.split('.').pop()?.toLowerCase();
+    // Parse text from file based on extension (strict allowlist)
+    const ext = documentRecord.name.split(".").pop()?.toLowerCase();
+    if (!ext) throw new Error("Unsupported file type: missing extension.");
 
     if (ext === "txt" || ext === "md" || ext === "csv") {
-       textChunkRaw = fs.readFileSync(filePath, "utf-8");
+      textChunkRaw = fs.readFileSync(filePath, "utf-8");
     } else if (ext === "pdf") {
-       const buffer = fs.readFileSync(filePath);
-       const pdfData = await pdfParse(buffer);
-       textChunkRaw = pdfData.text;
-    } else if (ext === "docx" || ext === "pptx") {
-       textChunkRaw = await parseOffice(filePath) as unknown as string;
+      const buffer = fs.readFileSync(filePath);
+      const pdfData = await pdfParse(buffer);
+      textChunkRaw = pdfData.text;
+    } else if (ext === "docx") {
+      textChunkRaw = (await parseOffice(filePath)) as unknown as string;
     } else {
-       const buffer = fs.readFileSync(filePath);
-       const obj = await extractText(buffer.buffer as ArrayBuffer, documentRecord.type);
-       textChunkRaw = obj.text;
+      throw new Error(`Unsupported file type: .${ext}`);
     }
 
     const { rag } = documentRecord;
