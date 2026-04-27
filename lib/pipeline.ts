@@ -184,11 +184,10 @@ export async function runIngestionPipeline(documentId: string, filePath: string)
   } finally {
      // Clean up temp file
      try {
-       if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-       }
+       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
      } catch (e) {
-       console.error("Failed to remove temp file", filePath);
+       // Cleanup failures should never mask the original pipeline outcome.
+       console.error("Failed to remove temp file", filePath, e);
      }
   }
 }

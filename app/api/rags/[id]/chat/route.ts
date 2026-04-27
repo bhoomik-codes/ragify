@@ -131,20 +131,22 @@ export async function POST(
         });
       }
 
-      // Broad query fallback: if still no chunks match (e.g. "summarize the documents"),
-      // just fetch the first few chunks of the available documents.
+      // If both vector search and keyword fallback return nothing, do NOT stuff arbitrary chunks
+      // into the context window. This degrades answer quality and increases hallucinations.
       if (matchedChunks.length === 0) {
-        matchedChunks = await db.chunk.findMany({
-          where: {
-            document: {
-              ragId: id,
-              status: 'READY',
-            },
-            index: { lte: 2 } // First 3 chunks of each document
+        return NextResponse.json(
+          {
+            message:
+              "I couldn't find relevant information in the uploaded documents to answer that question.",
+            conversationId,
           },
-          take: rag.topK,
-          orderBy: { index: 'asc' },
-        });
+          {
+            status: 200,
+            headers: {
+              "x-conversation-id": conversationId as string,
+            },
+          },
+        );
       }
 
       if (matchedChunks.length > 0) {

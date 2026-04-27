@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { runIngestionPipeline } from "@/lib/pipeline";
@@ -68,17 +68,53 @@ export async function POST(request: Request) {
       }
     });
 
-    // Detached background pipeline extraction ensuring quick 201 hook resolves flawlessly
-    runIngestionPipeline(document.id, filePath).catch(err =>
-      console.error("[PIPELINE_ERROR]", err)
-    );
+    const ingestionTask = async () => {
+      try {
+        await runIngestionPipeline(document.id, filePath);
+      } catch (err) {
+        // Note: `runIngestionPipeline` already marks the document as FAILED.
+        console.error("[PIPELINE_ERROR]", err);
+      } finally {
+        // Always clean up temp file, regardless of pipeline success/failure.
+        try {
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        } catch (cleanupErr) {
+          console.error("[UPLOAD_CLEANUP_ERROR] Failed to remove temp file", filePath, cleanupErr);
+        }
+      }
+    };
 
-    return NextResponse.json({ 
-       documentId: document.id, 
-       name: document.name, 
-       size: document.size, 
-       status: "QUEUED" 
-    }, { status: 201 });
+    // In serverless environments, a detached Promise may be terminated when the response is sent.
+    // Prefer `after()` (waitUntil pattern). If unavailable, run synchronously before responding.
+    let scheduled = false;
+    if (typeof after === "function") {
+      after(ingestionTask);
+      scheduled = true;
+    }
+
+    if (scheduled) {
+      return NextResponse.json(
+        {
+          documentId: document.id,
+          name: document.name,
+          size: document.size,
+          status: "QUEUED",
+        },
+        { status: 201 },
+      );
+    }
+
+    await ingestionTask();
+    const updated = await db.document.findUnique({ where: { id: document.id } });
+    return NextResponse.json(
+      {
+        documentId: document.id,
+        name: document.name,
+        size: document.size,
+        status: updated?.status ?? "QUEUED",
+      },
+      { status: 200 },
+    );
 
   } catch (error) {
     console.error("[UPLOAD_ERROR]", error);
