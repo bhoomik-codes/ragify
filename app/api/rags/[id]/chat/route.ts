@@ -101,25 +101,12 @@ export async function POST(
         embeddingModel,
       });
 
-      // If both vector search and keyword fallback return nothing, do NOT stuff arbitrary chunks
-      // into the context window. This degrades answer quality and increases hallucinations.
+      // If both vector search and keyword fallback return nothing,
+      // do NOT break the stream — instead inject a graceful note so the
+      // model responds politely rather than hallucinating.
       if (matchedChunks.length === 0) {
-        return NextResponse.json(
-          {
-            message:
-              "I couldn't find relevant information in the uploaded documents to answer that question.",
-            conversationId,
-          },
-          {
-            status: 200,
-            headers: {
-              "x-conversation-id": conversationId as string,
-            },
-          },
-        );
-      }
-
-      if (matchedChunks.length > 0) {
+        contextualSnippets = "\n\n[No matching document snippets were found for this query. Politely inform the user that you could not locate relevant information in the uploaded knowledge base, and suggest they rephrase or upload more documents.]";
+      } else {
         contextualSnippets = "\n\nRetrieved Context:\n" + matchedChunks.map(c => `[Context Snippet]\n${c.content}`).join("\n\n");
       }
     }

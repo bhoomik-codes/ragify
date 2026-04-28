@@ -11,6 +11,25 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
+  callbacks: {
+    ...authConfig.callbacks,
+    async signIn({ user }) {
+      if (user?.id) {
+        try {
+          await db.user.update({
+            where: { id: user.id },
+            data: {
+              lastLoginAt: new Date(),
+              lastLoginIp: "Unknown", // NextAuth doesn't expose req in signIn args natively without advanced hacking
+            }
+          });
+        } catch (e) {
+          console.error("Failed to update lastLoginAt", e);
+        }
+      }
+      return true;
+    }
+  },
   providers: [
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID,

@@ -21,7 +21,6 @@ export function ProfileIdentity({ user }: { user: UserData }) {
   const [avatar, setAvatar] = useState(user.avatarUrl);
   const [error, setError] = useState<string | null>(null);
 
-  // Inline edit states
   const [editUsername, setEditUsername] = useState(false);
   const [usernameVal, setUsernameVal] = useState(user.name || '');
   const [editDisplayName, setEditDisplayName] = useState(false);
@@ -33,29 +32,19 @@ export function ProfileIdentity({ user }: { user: UserData }) {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      setError('File size must be less than 2MB');
-      return;
-    }
+    if (file.size > 2 * 1024 * 1024) { setError('File must be < 2 MB'); return; }
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!allowed.includes(file.type)) {
-      setError('Invalid file type (use JPG, PNG, WEBP)');
-      return;
-    }
-
+    if (!allowed.includes(file.type)) { setError('Use JPG, PNG, or WEBP'); return; }
     setError(null);
     const formData = new FormData();
     formData.append('avatar', file);
-
     try {
       const res = await fetch('/api/users/me/profile', { method: 'POST', body: formData });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setAvatar(data.avatarUrl);
       router.refresh();
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError('Failed to upload avatar');
     }
   };
@@ -65,14 +54,12 @@ export function ProfileIdentity({ user }: { user: UserData }) {
       await fetch('/api/users/me/profile/avatar', { method: 'DELETE' });
       setAvatar(null);
       router.refresh();
-    } catch (err) {
-      console.error(err);
-    }
+    } catch { /* silent */ }
   };
 
   const handleSaveUsername = async () => {
     if (!/^[a-z0-9-]{3,30}$/i.test(usernameVal)) {
-      setError('Username must be 3-30 chars, alphanumeric or hyphens.');
+      setError('Username: 3–30 chars, letters, numbers, or hyphens.');
       return;
     }
     setError(null);
@@ -80,38 +67,28 @@ export function ProfileIdentity({ user }: { user: UserData }) {
       const res = await fetch('/api/users/me/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: usernameVal })
+        body: JSON.stringify({ username: usernameVal }),
       });
-      if (res.status === 409) {
-        setError('Username already taken');
-        return;
-      }
+      if (res.status === 409) { setError('Username already taken'); return; }
       if (!res.ok) throw new Error();
       setEditUsername(false);
       router.refresh();
-    } catch (err) {
-      setError('Failed to save username');
-    }
+    } catch { setError('Failed to save username'); }
   };
 
   const handleSaveDisplayName = async () => {
-    if (displayNameVal.length > 50) {
-      setError('Display name too long');
-      return;
-    }
+    if (displayNameVal.length > 50) { setError('Display name too long'); return; }
     setError(null);
     try {
       const res = await fetch('/api/users/me/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: displayNameVal })
+        body: JSON.stringify({ displayName: displayNameVal }),
       });
       if (!res.ok) throw new Error();
       setEditDisplayName(false);
       router.refresh();
-    } catch (err) {
-      setError('Failed to save display name');
-    }
+    } catch { setError('Failed to save display name'); }
   };
 
   // Debounce bio save
@@ -123,23 +100,23 @@ export function ProfileIdentity({ user }: { user: UserData }) {
         await fetch('/api/users/me/profile', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bio: bioVal })
+          body: JSON.stringify({ bio: bioVal }),
         });
-        setSavingBio(false);
         setBioSaved(true);
         setTimeout(() => setBioSaved(false), 2000);
-      } catch (err) {
+      } finally {
         setSavingBio(false);
       }
     }, 800);
     return () => clearTimeout(timer);
   }, [bioVal, user.bio]);
 
-  const initials = (user.name || user.email).substring(0, 2).toUpperCase();
+  const initials = (user.displayName || user.name || user.email).substring(0, 2).toUpperCase();
   const joinedDate = new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <div className={styles.card}>
+      {/* Avatar row */}
       <div className={styles.avatarRow}>
         <div className={styles.avatar}>
           {avatar ? (
@@ -148,91 +125,113 @@ export function ProfileIdentity({ user }: { user: UserData }) {
             <span>{initials}</span>
           )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button className={styles.miniBtn} onClick={() => fileInputRef.current?.click()}>
-              Upload photo
-            </button>
-            {avatar && (
-              <button className={styles.miniBtn} onClick={handleRemoveAvatar} style={{ color: 'var(--destructive, #ef4444)' }}>
-                Remove
-              </button>
-            )}
+        <div className={styles.avatarInfo}>
+          <div className={styles.avatarName}>{user.displayName || user.name || 'No name set'}</div>
+          <div className={styles.avatarEmail}>{user.email}</div>
+          <div style={{ marginTop: '4px' }}>
+            <span className={`${styles.badge} ${styles.badgePurple}`}>Free plan</span>
           </div>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} />
+        </div>
+        <div className={styles.avatarActions}>
+          <button className={styles.miniBtn} onClick={() => fileInputRef.current?.click()}>
+            Upload photo
+          </button>
+          {avatar && (
+            <button className={styles.miniBtn} onClick={handleRemoveAvatar} style={{ color: '#ef4444' }}>
+              Remove
+            </button>
+          )}
         </div>
       </div>
 
-      {error && <div className="text-red-500 text-xs mb-4">{error}</div>}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        accept="image/jpeg,image/png,image/webp"
+        onChange={handleFileChange}
+      />
 
+      {error && <div className={styles.errorMsg}>⚠ {error}</div>}
+
+      {/* Username */}
       <div className={styles.fieldRow}>
         <div className={styles.fieldLabel}>Username</div>
         {editUsername ? (
-          <div style={{ display: 'flex', gap: '8px', flex: 1, alignItems: 'center' }}>
-            <input className={styles.fieldInput} value={usernameVal} onChange={e => setUsernameVal(e.target.value)} />
+          <>
+            <input
+              className={styles.fieldInput}
+              value={usernameVal}
+              onChange={e => setUsernameVal(e.target.value)}
+              autoFocus
+            />
             <button className={styles.miniBtn} onClick={handleSaveUsername}>Save</button>
-            <button className={styles.miniBtn} onClick={() => { setEditUsername(false); setUsernameVal(user.name || ''); }}>Cancel</button>
-          </div>
+            <button className={styles.miniBtn} onClick={() => { setEditUsername(false); setUsernameVal(user.name || ''); }}>
+              Cancel
+            </button>
+          </>
         ) : (
           <>
-            <div className={styles.fieldVal}>{user.name || 'Not set'}</div>
+            <div className={styles.fieldVal}>{user.name || <span style={{ color: 'var(--text-muted)' }}>Not set</span>}</div>
             <button className={styles.miniBtn} onClick={() => setEditUsername(true)}>Change</button>
           </>
         )}
       </div>
 
+      {/* Display name */}
       <div className={styles.fieldRow}>
         <div className={styles.fieldLabel}>Display name</div>
         {editDisplayName ? (
-          <div style={{ display: 'flex', gap: '8px', flex: 1, alignItems: 'center' }}>
-            <input className={styles.fieldInput} value={displayNameVal} onChange={e => setDisplayNameVal(e.target.value)} />
+          <>
+            <input
+              className={styles.fieldInput}
+              value={displayNameVal}
+              onChange={e => setDisplayNameVal(e.target.value)}
+              autoFocus
+            />
             <button className={styles.miniBtn} onClick={handleSaveDisplayName}>Save</button>
-            <button className={styles.miniBtn} onClick={() => { setEditDisplayName(false); setDisplayNameVal(user.displayName || ''); }}>Cancel</button>
-          </div>
+            <button className={styles.miniBtn} onClick={() => { setEditDisplayName(false); setDisplayNameVal(user.displayName || ''); }}>
+              Cancel
+            </button>
+          </>
         ) : (
           <>
-            <div className={styles.fieldVal}>{user.displayName || 'Not set'}</div>
+            <div className={styles.fieldVal}>{user.displayName || <span style={{ color: 'var(--text-muted)' }}>Not set</span>}</div>
             <button className={styles.miniBtn} onClick={() => setEditDisplayName(true)}>Edit</button>
           </>
         )}
       </div>
 
+      {/* Email */}
       <div className={styles.fieldRow}>
         <div className={styles.fieldLabel}>Email</div>
-        <div className={styles.fieldVal} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className={styles.fieldVal}>
           {user.email}
-          <span className={`${styles.badgePill} ${styles.pillGreen}`} style={{ fontSize: '10px' }}>Verified</span>
+          <span className={`${styles.badge} ${styles.badgeGreen}`} style={{ fontSize: '10px' }}>Verified</span>
         </div>
-        <button className={styles.miniBtn} onClick={() => alert('Email change modal coming soon')}>Change</button>
       </div>
 
+      {/* Member since */}
       <div className={styles.fieldRow}>
         <div className={styles.fieldLabel}>Member since</div>
-        <div className={styles.fieldVal}>{joinedDate}</div>
+        <div className={styles.fieldVal} style={{ color: 'var(--text-muted)' }}>{joinedDate}</div>
       </div>
 
-      <div className={styles.fieldRow}>
-        <div className={styles.fieldLabel}>Plan</div>
-        <div className={styles.fieldVal}>
-          <span className={`${styles.badgePill} ${styles.pillInfo}`}>Free plan</span>
-        </div>
-      </div>
-
-      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '0.5px solid var(--border)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+      {/* Bio */}
+      <div className={styles.bioRow}>
+        <div className={styles.bioHeader}>
           <div className={styles.fieldLabel}>Short bio</div>
-          <div className="text-xs text-muted-foreground">
-            {savingBio && <span>Saving...</span>}
-            {bioSaved && <span className="text-green-500">Saved</span>}
-            <span style={{ marginLeft: '8px' }}>{bioVal.length}/160</span>
+          <div className={styles.bioMeta}>
+            {savingBio && <span className={styles.bioSaving}>Saving… </span>}
+            {bioSaved && <span className={styles.bioSaved}>✓ Saved </span>}
+            <span>{bioVal.length}/160</span>
           </div>
         </div>
-        <textarea 
-          className={styles.fieldInput} 
-          style={{ height: '60px', paddingTop: '8px', resize: 'none', width: '100%' }} 
-          maxLength={160} 
-          value={bioVal} 
-          onChange={e => setBioVal(e.target.value)} 
+        <textarea
+          className={styles.bioInput}
+          maxLength={160}
+          value={bioVal}
+          onChange={e => setBioVal(e.target.value)}
           placeholder="Tell us a bit about yourself..."
         />
       </div>

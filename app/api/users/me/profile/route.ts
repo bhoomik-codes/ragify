@@ -97,6 +97,14 @@ export async function PATCH(request: Request) {
       dataToUpdate.bio = bio;
     }
 
+    const { theme } = body;
+    if (theme !== undefined) {
+      if (!['light', 'dark'].includes(theme)) {
+        return NextResponse.json({ error: 'Invalid theme' }, { status: 400 });
+      }
+      dataToUpdate.theme = theme;
+    }
+
     if (Object.keys(dataToUpdate).length > 0) {
       await db.user.update({
         where: { id: session.user.id },
