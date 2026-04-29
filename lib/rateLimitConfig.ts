@@ -1,0 +1,4 @@
+export const RATE_LIMITS = {
+  UPLOADS_PER_MINUTE: 10,
+  RATE_WINDOW_MS: 60_000,
+};

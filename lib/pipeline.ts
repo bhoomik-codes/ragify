@@ -10,7 +10,8 @@
 import type { ChunkMetadata } from "./types";
 import { db } from "@/lib/db";
 import { serializeVector } from "@/lib/vector";
-import { embedBatch, isEmbeddingAvailable, DEFAULT_EMBEDDING_MODEL } from "@/lib/embeddings";
+import { embedBatch, isEmbeddingAvailable } from "@/lib/embeddings";
+import { DEFAULT_EMBEDDING_MODEL } from "@/lib/models";
 import { PDFParse } from "pdf-parse";
 // `officeparser` currently pulls dependencies that break Next/SWC builds.
 // Mammoth is already in this repo and works well for DOCX raw text extraction.

@@ -1,0 +1,20 @@
+.mathBlock {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.mathInline {
+  display: inline-block;
+  padding: 0 2px;
+}
+
+.scrollWrapper {
+  width: 100%;
+  overflow-x: auto;
+  text-align: center;
+}

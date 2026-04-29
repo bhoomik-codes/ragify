@@ -6,6 +6,7 @@ import { useDropzone } from 'react-dropzone';
 import { PipelineStatus } from '../../../../../components/ui/PipelineStatus/PipelineStatus';
 import { StatusBadge } from '../../../../../components/shared/StatusBadge';
 import { DocumentStatus } from '../../../../../lib/types';
+import { UPLOAD_CONFIG } from '../../../../../lib/uploadConfig';
 import styles from './Step5Upload.module.css';
 
 interface UploadingFile {
@@ -27,8 +28,8 @@ export function Step5Upload() {
     }
 
     for (const file of acceptedFiles) {
-      if (file.size > 10 * 1024 * 1024) {
-        setGlobalError((prev) => prev ? `${prev}\n${file.name} is too large (>10MB).` : `${file.name} is too large (>10MB).`);
+      if (file.size > UPLOAD_CONFIG.MAX_FILE_SIZE) {
+        setGlobalError((prev) => prev ? `${prev}\n${file.name} is too large (>${UPLOAD_CONFIG.MAX_FILE_SIZE_MB}MB).` : `${file.name} is too large (>${UPLOAD_CONFIG.MAX_FILE_SIZE_MB}MB).`);
         continue;
       }
       
@@ -39,20 +40,15 @@ export function Step5Upload() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'text/plain': ['.txt'],
-      'text/markdown': ['.md'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
-    },
-    maxSize: 10 * 1024 * 1024
+    accept: UPLOAD_CONFIG.MIME_TYPES,
+    maxSize: UPLOAD_CONFIG.MAX_FILE_SIZE
   });
 
   return (
     <div className={styles.uploadContainer}>
       <div>
         <h2 style={{ marginBottom: '16px', fontSize: '1.25rem', color: 'var(--text)' }}>Initial Documents</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '0.875rem' }}>Upload initial files to bootstrap your RAG. Max 10MB per file (.pdf, .txt, .md, .docx).</p>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '8px', fontSize: '0.875rem' }}>Upload initial files to bootstrap your RAG. Max {UPLOAD_CONFIG.MAX_FILE_SIZE_MB}MB per file ({UPLOAD_CONFIG.getAcceptString()}).</p>
       </div>
 
       {globalError && <div className={styles.errorText}>{globalError}</div>}

@@ -577,3 +577,13 @@
   margin: 0;
 }
 
+@keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: 0 } }
+.streamCursor::after {
+  content: '|';
+  display: inline-block;
+  animation: blink 0.8s step-end infinite;
+  color: var(--accent);
+  margin-left: 2px;
+  font-weight: bold;
+}
+

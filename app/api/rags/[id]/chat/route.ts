@@ -6,6 +6,7 @@ import { decryptKey } from "@/lib/crypto";
 import { retrieveContext } from "@/lib/retrieval";
 
 import { ragStream, LlmError, type LlmErrorCode } from '@/lib/llm';
+import { DEFAULT_EMBEDDING_MODEL } from '@/lib/models';
 
 // Standard Next.js server runtime
 export const runtime = "nodejs";
@@ -92,7 +93,7 @@ export async function POST(
     
     let contextualSnippets = "";
     if (lastUserMessage) {
-      const embeddingModel = rag.embeddingModel || 'qwen3-embedding';
+      const embeddingModel = rag.embeddingModel || DEFAULT_EMBEDDING_MODEL;
       const matchedChunks = await retrieveContext({
         ragId: id,
         query: lastUserMessage.content,
@@ -133,6 +134,29 @@ export async function POST(
     if (contextualSnippets) {
        finalSystemPrompt += contextualSnippets;
     }
+
+    // Rich Content Protocol - Instructions for the LLM
+    finalSystemPrompt += `
+    \n\nRICH CONTENT PROTOCOL:
+    You are encouraged to use interactive elements when presenting data or designs:
+    
+    1. CHARTS: Use \`\`\`chart followed by a JSON object:
+       {
+         "type": "bar" | "line" | "area",
+         "title": "Chart Title",
+         "xKey": "name",
+         "yKeys": [{ "key": "value", "label": "Label", "color": "#hex" }],
+         "data": [{ "name": "A", "value": 10 }, ...]
+       }
+    
+    2. TABLES: Use standard markdown tables OR \`\`\`table for complex data.
+    
+    3. DIAGRAMS: Use \`\`\`mermaid for flowcharts, sequence diagrams, etc.
+    
+    4. HTML/UI MOCKUPS: Use \`\`\`html for self-contained UI designs. Use vanilla CSS and Flexbox/Grid.
+    
+    5. MATH: Use $$ for block equations and $ for inline LaTeX.
+    `;
 
     // Effective provider from client override, or fallback to the rag default
     const effectiveProvider = (providerOverride || rag.provider) as string;

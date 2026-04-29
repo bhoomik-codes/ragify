@@ -5,13 +5,7 @@ import { useWizardStore } from '../wizardStore';
 import { Input } from '../../../../../components/ui/Input';
 import { Provider } from '../../../../../lib/types';
 
-const MODEL_REGISTRY: Record<string, { label: string; models: string[] }> = {
-  OPENAI:    { label: 'OpenAI',        models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
-  ANTHROPIC: { label: 'Anthropic',     models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'] },
-  GOOGLE:    { label: 'Google Gemini', models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash'] },
-  MISTRAL:   { label: 'Mistral',       models: ['mistral-large-latest', 'mistral-small-latest', 'open-mixtral-8x7b'] },
-  LOCAL:     { label: '🖥️ Local (Ollama)', models: ['llama3.3', 'qwen3:8b', 'qwen3:32b', 'gemma3:4b', 'gemma3:27b', 'deepseek-r1:14b', 'phi4:14b', 'codellama'] },
-};
+import { MODEL_REGISTRY } from '@/lib/models';
 
 export function Step2Model() {
   const { data, updateData } = useWizardStore();

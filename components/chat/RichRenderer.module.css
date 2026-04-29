@@ -1,0 +1,105 @@
+.prose {
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 100%;
+  color: var(--text);
+}
+
+.prose h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 0.75rem; color: var(--text); }
+.prose h2 { font-size: 1.4rem; font-weight: 600; margin: 1.25rem 0 0.6rem; color: var(--text); }
+.prose h3 { font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--text); }
+
+.prose p {
+  margin: 0 0 1rem;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+.prose ul, .prose ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.prose li {
+  margin-bottom: 0.25rem;
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.prose code:not(pre code) {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875em;
+  background: var(--bg-hover);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.prose th {
+  background: var(--bg-card);
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.prose td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.prose tr:last-child td {
+  border-bottom: none;
+}
+
+.prose tr:hover td {
+  background: var(--bg-hover);
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.prose a:hover {
+  border-bottom-color: var(--accent);
+}
+
+.prose img {
+  max-width: 100%;
+  border-radius: var(--radius);
+  margin: 1rem 0;
+}
+
+/* Math styling — must be scoped under the local .prose class */
+.prose :global(.katex-display) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1rem 0;
+  margin: 1rem 0;
+  border-radius: var(--radius);
+}

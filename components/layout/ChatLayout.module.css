@@ -1,0 +1,40 @@
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 0px;
+  height: 100%;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  transition: grid-template-columns 300ms ease;
+}
+
+.layout[data-artifact-open='true'] {
+  grid-template-columns: 1fr 480px;
+}
+
+.chatArea {
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarArea {
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background: var(--bg-card);
+  position: relative;
+}
+
+/* On small screens, sidebar becomes a fixed overlay sheet */
+@media (max-width: 900px) {
+  .layout,
+  .layout[data-artifact-open='true'] {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebarArea {
+    display: none;
+  }
+}

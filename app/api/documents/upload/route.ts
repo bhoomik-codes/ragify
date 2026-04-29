@@ -8,21 +8,10 @@ import { getStorage } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
-const UPLOADS_PER_MINUTE = 10;
-const RATE_WINDOW_MS = 60_000;
+import { UPLOAD_CONFIG } from "@/lib/uploadConfig";
+import { RATE_LIMITS } from "@/lib/rateLimitConfig";
 
 const uploadTimestampsByUser = new Map<string, number[]>();
-
-const ALLOWED_MIME_TYPES = new Set([
-  "text/plain", // .txt
-  "text/markdown", // .md
-  "application/pdf", // .pdf
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-  "text/csv", // .csv
-]);
-
-const ALLOWED_EXTENSIONS = new Set(["txt", "md", "pdf", "docx", "csv"]);
 
 export async function POST(request: Request) {
   try {
@@ -34,8 +23,8 @@ export async function POST(request: Request) {
     // Basic per-user in-memory rate limiting (best-effort; resets on cold start).
     const now = Date.now();
     const existing = uploadTimestampsByUser.get(session.user.id) ?? [];
-    const recent = existing.filter((ts) => now - ts < RATE_WINDOW_MS);
-    if (recent.length >= UPLOADS_PER_MINUTE) {
+    const recent = existing.filter((ts) => now - ts < RATE_LIMITS.RATE_WINDOW_MS);
+    if (recent.length >= RATE_LIMITS.UPLOADS_PER_MINUTE) {
       uploadTimestampsByUser.set(session.user.id, recent);
       return NextResponse.json(
         { error: "Too many uploads. Please wait and try again." },
@@ -53,7 +42,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing ragId or file in payload" }, { status: 400 });
     }
 
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > UPLOAD_CONFIG.MAX_FILE_SIZE) {
       return NextResponse.json({ error: "File too large" }, { status: 413 });
     }
 
@@ -61,20 +50,14 @@ export async function POST(request: Request) {
     const sanitizedBaseName = path.basename(clientName);
     const ext = sanitizedBaseName.split(".").pop()?.toLowerCase() ?? "";
 
-    if (!ALLOWED_EXTENSIONS.has(ext) || !ALLOWED_MIME_TYPES.has(file.type)) {
+    const allowedMimeTypes = new Set(Object.keys(UPLOAD_CONFIG.MIME_TYPES));
+    const allowedExtensions = new Set(UPLOAD_CONFIG.getAllowedExtensions().map(e => e.replace('.', '')));
+
+    if (!allowedExtensions.has(ext) || !allowedMimeTypes.has(file.type)) {
       return NextResponse.json(
         {
           error: "Unsupported media type",
-          allowed: [
-            { ext: ".txt", mime: "text/plain" },
-            { ext: ".md", mime: "text/markdown" },
-            { ext: ".pdf", mime: "application/pdf" },
-            {
-              ext: ".docx",
-              mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            },
-            { ext: ".csv", mime: "text/csv" },
-          ],
+          allowed: UPLOAD_CONFIG.MIME_TYPES,
           received: { name: clientName, mime: file.type },
         },
         { status: 415 },

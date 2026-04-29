@@ -4,6 +4,8 @@ import React from 'react';
 import { useWizardStore } from '../wizardStore';
 import { Input } from '../../../../../components/ui/Input';
 
+import { EMBEDDING_REGISTRY } from '@/lib/models';
+
 export function Step3Retrieval() {
   const { data, updateData } = useWizardStore();
 
@@ -19,12 +21,9 @@ export function Step3Retrieval() {
             onChange={(e) => updateData({ embeddingModel: e.target.value })}
             style={{ padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text)' }}
           >
-            <option value="text-embedding-3-small">text-embedding-3-small (OpenAI)</option>
-            <option value="text-embedding-3-large">text-embedding-3-large (OpenAI)</option>
-            <option value="text-embedding-ada-002">text-embedding-ada-002 (OpenAI)</option>
-            <option value="qwen3-embedding">qwen3-embedding (Local/Ollama)</option>
-            <option value="nomic-embed-text">nomic-embed-text (Local/Ollama)</option>
-            <option value="mxbai-embed-large">mxbai-embed-large (Local/Ollama)</option>
+            {EMBEDDING_REGISTRY.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
           </select>
         </div>
 

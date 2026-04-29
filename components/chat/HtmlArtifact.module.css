@@ -1,0 +1,60 @@
+.artifactContainer {
+  margin: 1.5rem 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+}
+
+.artifactHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(var(--accent-rgb), 0.04);
+  border-bottom: 1px solid var(--border);
+}
+
+.artifactTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.artifactActions {
+  display: flex;
+  gap: 8px;
+}
+
+.artifactActions button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.artifactActions button:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.iframeWrapper {
+  width: 100%;
+  position: relative;
+  background: var(--bg);
+  transition: height 0.2s ease-out;
+}
+
+.iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}

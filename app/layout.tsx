@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { JetBrains_Mono } from 'next/font/google';
 import "./globals.css";
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: "Ragify | Your Personal Knowledge Chatbot",
@@ -15,7 +22,7 @@ export default function RootLayout({
   const theme = cookies().get('theme')?.value || 'light';
   
   return (
-    <html lang="en" data-theme={theme} suppressHydrationWarning>
+    <html lang="en" data-theme={theme} suppressHydrationWarning className={jetbrainsMono.variable}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

@@ -5,6 +5,7 @@ import { runIngestionPipeline } from '@/lib/pipeline';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { getStorage } from '@/lib/storage';
+import { UPLOAD_CONFIG } from '@/lib/uploadConfig';
 
 export const runtime = 'nodejs';
 
@@ -28,20 +29,18 @@ export async function POST(
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
     // Validate file type
-    const allowedTypes = [
-      'text/plain', 
-      'text/markdown', 
-      'application/pdf', 
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-    ];
+    const allowedMimeTypes = new Set(Object.keys(UPLOAD_CONFIG.MIME_TYPES));
+    const allowedExtensions = new Set(UPLOAD_CONFIG.getAllowedExtensions().map(e => e.replace('.', '')));
     
-    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(txt|md|csv|pdf|docx)$/i)) {
-      return NextResponse.json({ error: 'Unsupported file type. Use TXT, MD, CSV, PDF, or DOCX.' }, { status: 415 });
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+
+    if (!allowedMimeTypes.has(file.type) && !allowedExtensions.has(ext)) {
+      return NextResponse.json({ error: `Unsupported file type. Allowed: ${UPLOAD_CONFIG.getAcceptString()}` }, { status: 415 });
     }
 
-    // Max 10MB guard
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File too large. Maximum size is 10MB.' }, { status: 413 });
+    // Max limit guard
+    if (file.size > UPLOAD_CONFIG.MAX_FILE_SIZE) {
+      return NextResponse.json({ error: `File too large. Maximum size is ${UPLOAD_CONFIG.MAX_FILE_SIZE_MB}MB.` }, { status: 413 });
     }
 
     const bytes = await file.arrayBuffer();

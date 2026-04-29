@@ -10,6 +10,9 @@
   --accent-foreground: #FFFFFF;
   --border: #E5E5E5;
   --radius: 8px;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --accent-rgb: 91, 91, 214;
+  --error-color: #ef4444;
   
   /* Next.js default overrides */
   --background: var(--bg);
@@ -25,6 +28,9 @@
   --accent: #7B7BF0;
   --accent-foreground: #FFFFFF;
   --border: #2E2E2C;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --accent-rgb: 123, 123, 240;
+  --error-color: #f87171;
   
   --background: var(--bg);
   --foreground: var(--text);

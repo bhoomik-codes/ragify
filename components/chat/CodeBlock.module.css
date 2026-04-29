@@ -1,0 +1,76 @@
+.codeBlockWrapper {
+  margin: 1.5rem 0;
+  border-radius: var(--radius);
+  background: #1e1e1e;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.codeBlockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.05);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.languageBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.05em;
+}
+
+.copyButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.copyButton:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.highlighterWrapper {
+  max-height: 500px;
+  overflow: auto;
+}
+
+.placeholderBlock {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: var(--bg-card);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.placeholderLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.placeholderBlock pre {
+  font-size: 0.75rem;
+  text-align: left;
+  background: var(--bg);
+  padding: 10px;
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 200px;
+  color: var(--text-muted);
+}

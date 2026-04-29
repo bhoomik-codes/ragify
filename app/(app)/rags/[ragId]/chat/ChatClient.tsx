@@ -2,23 +2,18 @@
 
 import React, { useRef, useEffect } from 'react';
 import { useChat } from 'ai/react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { RichRenderer } from '@/components/chat/RichRenderer';
+import { MessageBubble } from '@/components/chat/MessageBubble';
+import { TypingIndicator } from '@/components/chat/TypingIndicator';
+import { ArtifactSidebar } from '@/components/artifact/ArtifactSidebar';
+import { ChatLayout } from '@/components/layout/ChatLayout';
 import Link from 'next/link';
 import { ArrowLeft, MessageSquareText, Settings, Menu, Plus, MessageSquare } from 'lucide-react';
 import styles from './Chat.module.css';
+import { UPLOAD_CONFIG } from '@/lib/uploadConfig';
 
-type LlmErrorCode = 'INVALID_API_KEY' | 'CREDITS_EXHAUSTED' | 'MODEL_NOT_FOUND' | 'RATE_LIMIT' | 'CONTEXT_OVERFLOW' | 'PROVIDER_ERROR';
-
-const ERROR_CONFIG: Record<LlmErrorCode | 'default', { icon: string; title: string; hint: string; color: string; }> = {
-  INVALID_API_KEY:   { icon: '🔑', title: 'Invalid API Key',       hint: 'Your API key is incorrect or revoked. Update it in Settings → Provider Keys.',   color: '#f59e0b' },
-  CREDITS_EXHAUSTED: { icon: '💳', title: 'Credits Exhausted',     hint: 'Your API account is out of credits. Top up your balance with your provider.',     color: '#ef4444' },
-  MODEL_NOT_FOUND:   { icon: '🤖', title: 'Model Not Available',   hint: "This model doesn't exist or isn't accessible with your key. Pick another above.", color: '#8b5cf6' },
-  RATE_LIMIT:        { icon: '⏱️', title: 'Rate Limit Reached',    hint: 'Too many requests. Wait a moment and try again.',                                  color: '#f97316' },
-  CONTEXT_OVERFLOW:  { icon: '📄', title: 'Conversation Too Long', hint: "This chat has exceeded the model's context window. Start a new conversation.",     color: '#3b82f6' },
-  PROVIDER_ERROR:    { icon: '⚡', title: 'Provider Error',         hint: 'The AI provider returned an unexpected error. Try again in a moment.',             color: '#ef4444' },
-  default:           { icon: '⚠️', title: 'Something went wrong',  hint: 'An unexpected error occurred. Please try again.',                                  color: '#ef4444' },
-};
+import { LlmErrorCode } from '@/lib/llm';
+import { ERROR_CONFIG } from '@/lib/errorConfig';
 
 function parseErrorCode(error: Error | undefined): LlmErrorCode | 'default' {
   if (!error) return 'default';
@@ -47,13 +42,7 @@ interface ChatClientProps {
   initialStrictMode?: boolean;
 }
 
-const MODEL_REGISTRY: Record<string, { label: string; models: string[] }> = {
-  OPENAI:    { label: 'OpenAI',        models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
-  ANTHROPIC: { label: 'Anthropic',     models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'] },
-  GOOGLE:    { label: 'Google Gemini', models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash'] },
-  MISTRAL:   { label: 'Mistral',       models: ['mistral-large-latest', 'mistral-small-latest', 'open-mixtral-8x7b'] },
-  LOCAL:     { label: '🖥️ Local (Ollama)', models: ['llama3.3', 'qwen3:8b', 'qwen3:32b', 'gemma3:4b', 'gemma3:27b', 'deepseek-r1:14b', 'phi4:14b', 'codellama'] },
-};
+import { MODEL_REGISTRY } from '@/lib/models';
 
 export function ChatClient({ 
   ragId, 
@@ -237,7 +226,8 @@ export function ChatClient({
       )}
 
       {/* Main Chat Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <ChatLayout sidebar={<ArtifactSidebar />}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100%' }}>
         <header className={styles.chatHeader}>
           <div className={styles.headerContent}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -308,23 +298,17 @@ export function ChatClient({
           </div>
         )}
         
-        {messages.map(m => (
-          <div key={m.id} className={m.role === 'user' ? styles.userMessageWrapper : styles.assistantMessageWrapper}>
-            <div className={m.role === 'user' ? styles.userBubble : styles.assistantBubble}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {m.content}
-              </ReactMarkdown>
-            </div>
-          </div>
+        {messages.map((m, idx) => (
+          <MessageBubble
+            key={m.id}
+            role={m.role as 'user' | 'assistant'}
+            content={m.content}
+            isStreaming={isLoading && idx === messages.length - 1 && m.role === 'assistant'}
+            index={idx}
+          />
         ))}
-        {isLoading && (
-          <div className={styles.assistantMessageWrapper}>
-            <div className={styles.loadingBubble}>
-              <div className={styles.wave}></div>
-              <div className={styles.wave}></div>
-              <div className={styles.wave}></div>
-            </div>
-          </div>
+        {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+          <TypingIndicator />
         )}
         <div ref={endRef} />
       </div>
@@ -383,6 +367,8 @@ export function ChatClient({
           </button>
         </form>
       </div>
+      </div>
+      </ChatLayout>
       
       {/* Settings Overlay */}
       {panelOpen && <div className={styles.panelOverlay} onClick={() => setPanelOpen(false)} />}
@@ -451,12 +437,10 @@ export function ChatClient({
         </div>
       </div>
 
-      </div>
-
       <input
         ref={fileInputRef}
         type="file"
-        accept=".txt,.md,.csv,.pdf,.docx,.pptx"
+        accept={UPLOAD_CONFIG.getAcceptString()}
         style={{ display: 'none' }}
         onChange={handleFileUpload}
       />

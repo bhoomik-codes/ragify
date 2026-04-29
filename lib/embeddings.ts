@@ -15,7 +15,7 @@ const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
  * The default embedding model served by Ollama.
  * Override per-RAG via the `embeddingModel` field in the RAG configuration.
  */
-export const DEFAULT_EMBEDDING_MODEL = "qwen3-embedding";
+import { DEFAULT_EMBEDDING_MODEL } from './models';
 
 interface OllamaEmbedResponse {
   model: string;
