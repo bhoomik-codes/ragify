@@ -254,11 +254,11 @@ ragify/
 - [x] Dashboard Bot Management (Edit/Delete)
 - [x] Chat History Sidebar & Resumption
 - [x] Real embedding API integration (Ollama & OpenAI)
+- [x] Analytics dashboard (token usage, response times)
+- [x] Public RAG sharing links
+- [x] S3/R2 object storage for documents
 - [x] Hybrid Retrieval (Vector search + FTS5 fallback)
 - [ ] Internet Search Integration (Tavily/Serper)
-- [ ] Public RAG sharing links
-- [ ] S3/R2 object storage for documents
-- [ ] Analytics dashboard (token usage, response times)
 - [ ] PostgreSQL & pgvector migration
 - [ ] Dedicated Worker Queue (Redis/BullMQ)
 
@@ -266,18 +266,18 @@ ragify/
 ---
 
 ## 📝 Changelog
+
 ### v0.2.2 - Stability & UX Hardening
 
 - **Memory Stabilization**: Implemented batch-processing in the ingestion pipeline to prevent Heap Out of Memory (OOM) errors during large document processing.
 - **Improved UX**: Added a "Retry" button and detailed error messaging (e.g., "Rate limited") for document uploads in the creation wizard.
 - **Rate Limit Optimization**: Increased document upload rate limits from 10 to 50 per minute to better support large batch uploads.
-- **Mermaid Diagram Reliability**: 
+- **Mermaid Diagram Reliability**:
   - Updated system prompts with strict syntax rules for modern Mermaid (flowchart TD, quoted labels).
   - Enhanced the Mermaid component to capture and display actual parser errors instead of hanging on failures.
-- **Infrastructure & Testing**: 
+- **Infrastructure & Testing**:
   - Expanded test suite with comprehensive integration tests for API routes and pipeline logic.
   - Hardened repository management by tracking `FUTURE_PLAN.md` and ignoring SQLite temporary artifacts (`.db-wal`, `.db-shm`).
-
 
 ### v0.2.1 - Recent Updates
 
