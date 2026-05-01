@@ -261,6 +261,18 @@ ragify/
 ---
 
 ## 📝 Changelog
+### v0.2.2 - Stability & UX Hardening
+
+- **Memory Stabilization**: Implemented batch-processing in the ingestion pipeline to prevent Heap Out of Memory (OOM) errors during large document processing.
+- **Improved UX**: Added a "Retry" button and detailed error messaging (e.g., "Rate limited") for document uploads in the creation wizard.
+- **Rate Limit Optimization**: Increased document upload rate limits from 10 to 50 per minute to better support large batch uploads.
+- **Mermaid Diagram Reliability**: 
+  - Updated system prompts with strict syntax rules for modern Mermaid (flowchart TD, quoted labels).
+  - Enhanced the Mermaid component to capture and display actual parser errors instead of hanging on failures.
+- **Infrastructure & Testing**: 
+  - Expanded test suite with comprehensive integration tests for API routes and pipeline logic.
+  - Hardened repository management by tracking `FUTURE_PLAN.md` and ignoring SQLite temporary artifacts (`.db-wal`, `.db-shm`).
+
 
 ### v0.2.1 - Recent Updates
 
