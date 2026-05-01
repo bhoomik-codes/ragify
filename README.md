@@ -244,7 +244,7 @@ ragify/
 - [x] Authentication & Dashboard
 - [x] Multi-step RAG creation wizard
 - [x] Streaming chat with Vercel AI SDK
-- [x] Document ingestion pipeline
+- [x] Document ingestion pipeline (OOM-safe batching)
 - [x] BYOK provider key management
 - [x] Platform API keys
 - [x] In-chat model switcher
@@ -253,10 +253,15 @@ ragify/
 - [x] Granular LLM error classification
 - [x] Dashboard Bot Management (Edit/Delete)
 - [x] Chat History Sidebar & Resumption
-- [ ] Real embedding API integration (replace keyword search)
-- [ ] Analytics dashboard (token usage, response times)
+- [x] Real embedding API integration (Ollama & OpenAI)
+- [x] Hybrid Retrieval (Vector search + FTS5 fallback)
+- [ ] Internet Search Integration (Tavily/Serper)
 - [ ] Public RAG sharing links
 - [ ] S3/R2 object storage for documents
+- [ ] Analytics dashboard (token usage, response times)
+- [ ] PostgreSQL & pgvector migration
+- [ ] Dedicated Worker Queue (Redis/BullMQ)
+
 
 ---
 
