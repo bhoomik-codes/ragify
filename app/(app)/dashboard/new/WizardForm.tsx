@@ -18,6 +18,31 @@ export function WizardForm({ isEdit = false, ragId = null }: { isEdit?: boolean,
   const router = useRouter();
   const [submissionPhase, setSubmissionPhase] = useState<'IDLE' | 'CREATING_RAG' | 'UPLOADING' | 'DONE'>('IDLE');
   const [error, setError] = useState<string | null>(null);
+  const [createdRagId, setCreatedRagId] = useState<string | null>(null);
+
+  const uploadFile = async (f: any, ragIdToUse: string) => {
+    setFiles(prev => prev.map(old => old.id === f.id ? { ...old, status: 'UPLOADING', error: undefined } : old));
+    const formData = new FormData();
+    formData.append('ragId', ragIdToUse);
+    formData.append('file', f.file);
+
+    try {
+      const uploadRes = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (uploadRes.ok) {
+        const json = await uploadRes.json();
+        setFiles(prev => prev.map(old => old.id === f.id ? { ...old, status: json.status, documentId: json.documentId } : old));
+      } else {
+        const errText = uploadRes.status === 429 ? 'Rate limited (wait a moment)' : 'Upload failed';
+        setFiles(prev => prev.map(old => old.id === f.id ? { ...old, status: 'FAILED', error: errText } : old));
+      }
+    } catch (e) {
+      setFiles(prev => prev.map(old => old.id === f.id ? { ...old, status: 'FAILED', error: 'Network error' } : old));
+    }
+  };
 
   const handleSubmit = async () => {
     setSubmissionPhase('CREATING_RAG');
@@ -42,6 +67,7 @@ export function WizardForm({ isEdit = false, ragId = null }: { isEdit?: boolean,
       }
       
       const createdRag = await res.json();
+      setCreatedRagId(createdRag.id);
       
       if (files.length === 0) {
          reset();
@@ -53,22 +79,7 @@ export function WizardForm({ isEdit = false, ragId = null }: { isEdit?: boolean,
       setSubmissionPhase('UPLOADING');
       
       for (const f of files) {
-         setFiles(prev => prev.map(old => old.id === f.id ? { ...old, status: 'UPLOADING' } : old));
-         const formData = new FormData();
-         formData.append('ragId', createdRag.id);
-         formData.append('file', f.file);
-
-         const uploadRes = await fetch('/api/documents/upload', {
-           method: 'POST',
-           body: formData
-         });
-
-         if (uploadRes.ok) {
-           const json = await uploadRes.json();
-           setFiles(prev => prev.map(old => old.id === f.id ? { ...old, status: json.status, documentId: json.documentId } : old));
-         } else {
-           setFiles(prev => prev.map(old => old.id === f.id ? { ...old, status: 'FAILED', error: 'Upload failed' } : old));
-         }
+         await uploadFile(f, createdRag.id);
       }
 
     } catch (e) {
@@ -101,11 +112,22 @@ export function WizardForm({ isEdit = false, ragId = null }: { isEdit?: boolean,
                <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', backgroundColor: 'var(--bg-card)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontWeight: 500, color: 'var(--text)', fontSize: '0.875rem' }}>{f.file.name}</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                      {f.status === 'FAILED' ? <span style={{color: '#ef4444'}}>Failed</span> : 
-                       f.status === 'UPLOADING' ? 'Uploading...' : 
-                       f.status === 'READY' ? <span style={{color: '#10B981'}}>Uploaded</span> : 'Processing...'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                        {f.status === 'FAILED' ? <span style={{color: '#ef4444'}}>{f.error || 'Failed'}</span> : 
+                         f.status === 'UPLOADING' ? 'Uploading...' : 
+                         f.status === 'READY' ? <span style={{color: '#10B981'}}>Uploaded</span> : 'Processing...'}
+                      </span>
+                      {f.status === 'FAILED' && createdRagId && (
+                        <Button 
+                          variant="secondary" 
+                          onClick={() => uploadFile(f, createdRagId)}
+                          style={{ padding: '4px 12px', fontSize: '0.75rem', height: 'auto' }}
+                        >
+                          Retry
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   
                   {f.documentId && (

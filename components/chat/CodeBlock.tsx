@@ -1,14 +1,21 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check } from 'lucide-react';
-import { InteractiveChart } from './InteractiveChart';
-import { RichTable } from './RichTable';
-import { MermaidDiagram } from './MermaidDiagram';
-import { HtmlArtifact } from './HtmlArtifact';
+import { Copy, Check, Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import styles from './CodeBlock.module.css';
+
+const InteractiveChart = dynamic(() => import('./InteractiveChart').then(mod => mod.InteractiveChart), { 
+  ssr: false, 
+  loading: () => <div className={styles.loadingBlock}><Loader2 className="animate-spin" /> Loading Chart...</div> 
+});
+const RichTable = dynamic(() => import('./RichTable').then(mod => mod.RichTable), { ssr: false });
+const MermaidDiagram = dynamic(() => import('./MermaidDiagram').then(mod => mod.MermaidDiagram), { 
+  ssr: false,
+  loading: () => <div className={styles.loadingBlock}><Loader2 className="animate-spin" /> Loading Diagram...</div> 
+});
+const HtmlArtifact = dynamic(() => import('./HtmlArtifact').then(mod => mod.HtmlArtifact), { ssr: false });
+const CodeBlockHighlighter = dynamic(() => import('./CodeBlockHighlighter').then(mod => mod.CodeBlockHighlighter), { ssr: false });
 
 interface CodeBlockProps {
   node?: unknown;
@@ -69,19 +76,7 @@ export function CodeBlock({ inline, className, children }: CodeBlockProps) {
           </button>
         </div>
         <div className={styles.highlighterWrapper}>
-          <SyntaxHighlighter
-            style={vscDarkPlus as { [key: string]: React.CSSProperties }}
-            language={language}
-            PreTag="div"
-            customStyle={{
-              margin: 0,
-              padding: '1rem',
-              fontSize: '0.875rem',
-              backgroundColor: 'transparent',
-            }}
-          >
-            {content}
-          </SyntaxHighlighter>
+          <CodeBlockHighlighter language={language} content={content} />
         </div>
       </div>
     );

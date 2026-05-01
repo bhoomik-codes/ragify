@@ -43,3 +43,6 @@ export const db: PrismaClient =
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = db;
 }
+
+// Enable Write-Ahead Logging (WAL) for better concurrent read/write performance
+db.$executeRawUnsafe('PRAGMA journal_mode = WAL;').catch(console.error);

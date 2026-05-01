@@ -66,15 +66,17 @@ export async function POST(
       },
     });
 
-    await runIngestionPipeline(document.id);
-    const updated = await db.document.findUnique({ where: { id: document.id } });
+    // Fire and forget background ingestion
+    runIngestionPipeline(document.id).catch(err => {
+      console.error(`[BACKGROUND_INGESTION_ERROR] Document ${document.id}:`, err);
+    });
 
     return NextResponse.json({
       id: document.id,
       name: document.name,
-      status: updated?.status ?? 'QUEUED',
-      message: 'Document upload completed.',
-    }, { status: 200 });
+      status: 'QUEUED',
+      message: 'Document ingestion started in background.',
+    }, { status: 202 });
 
   } catch (error) {
     console.error('[CHAT_DOCUMENT_UPLOAD_ERROR]', error);

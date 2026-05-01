@@ -16,8 +16,12 @@ node_modules/
 # ── Database ────────────────────────────────────────────────────────────
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 prisma/dev.db
 prisma/dev.db-journal
+prisma/dev.db-shm
+prisma/dev.db-wal
 
 # ── Environment & Secrets ───────────────────────────────────────────────
 .env
@@ -63,9 +67,11 @@ next-env.d.ts
 # ── Vercel ──────────────────────────────────────────────────────────────
 .vercel
 
-# ── Temp uploads ────────────────────────────────────────────────────────
+# ── Temp uploads & Scripts ───────────────────────────────────────────
 /tmp/
 AUDIT_REPORT.md
+test-*.js
+temp-*.js
 sample_docs/
 sample.txt
 sample.md

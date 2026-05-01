@@ -38,18 +38,31 @@ export function MermaidDiagram({ source }: MermaidProps) {
     const renderDiagram = async () => {
       try {
         const { default: mermaid } = await import('mermaid');
-        // Use a unique, stable ID derived from source hash
-        const id = `mmd-${source.length}-${source.slice(0, 8).replace(/\W/g, '_')}`;
+        try {
+          await mermaid.parse(source);
+        } catch (parseError: any) {
+          if (!cancelled) {
+            // Provide the actual parser error instead of hanging on a generic message
+            setError(parseError?.message || 'Invalid Mermaid syntax.');
+          }
+          return;
+        }
+
+        const id = `mmd-${Date.now()}`; // Unique ID to avoid collision
         const { svg: renderedSvg } = await mermaid.render(id, source);
         if (!cancelled) {
           setSvg(renderedSvg);
           setError(null);
         }
-      } catch (e: unknown) {
+      } catch (e: any) {
         if (!cancelled) {
-          const msg = e instanceof Error ? e.message : 'Failed to render diagram';
+          const msg = e?.message || 'Failed to render diagram';
           setError(msg);
         }
+      } finally {
+        // Mermaid sometimes leaves orphaned error containers in the DOM
+        const orphaned = document.querySelectorAll('[id^="dmmd-"]');
+        orphaned.forEach(node => node.remove());
       }
     };
 
@@ -57,13 +70,22 @@ export function MermaidDiagram({ source }: MermaidProps) {
     return () => { cancelled = true; };
   }, [source, ready]);
 
+  if (error === 'Waiting for valid Mermaid syntax...') {
+    return (
+      <div className={styles.loadingCard}>
+        <div className={styles.spinner}></div>
+        <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{error}</span>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className={styles.errorCard}>
         <AlertCircle size={20} />
         <div>
           <strong>Mermaid Render Error</strong>
-          <pre className={styles.errorPre}>{source}</pre>
+          <pre className={styles.errorPre}>{error}</pre>
         </div>
       </div>
     );

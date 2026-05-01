@@ -152,6 +152,11 @@ export async function POST(
     2. TABLES: Use standard markdown tables OR \`\`\`table for complex data.
     
     3. DIAGRAMS: Use \`\`\`mermaid for flowcharts, sequence diagrams, etc.
+       MERMAID RULES:
+       - Use "flowchart" instead of the older "graph" keyword (e.g., flowchart TD).
+       - ALWAYS enclose node labels containing parentheses, spaces, or special characters in quotes. 
+         (Correct: \`A["Node (Info)"]\` | Incorrect: \`A[Node (Info)]\`).
+       - Do NOT use HTML tags inside labels.
     
     4. HTML/UI MOCKUPS: Use \`\`\`html for self-contained UI designs. Use vanilla CSS and Flexbox/Grid.
     

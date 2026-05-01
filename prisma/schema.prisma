@@ -180,6 +180,8 @@ model Document {
 
   rag    Rag     @relation(fields: [ragId], references: [id], onDelete: Cascade)
   chunks Chunk[]
+
+  @@index([ragId])
 }
 
 model Chunk {
@@ -194,6 +196,8 @@ model Chunk {
 
   document  Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
   embedding Embedding?
+
+  @@index([documentId])
 }
 
 model Embedding {
@@ -221,6 +225,9 @@ model Conversation {
   rag      Rag       @relation(fields: [ragId], references: [id], onDelete: Cascade)
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages Message[]
+
+  @@index([ragId])
+  @@index([userId])
 }
 
 model Message {
@@ -234,6 +241,8 @@ model Message {
   createdAt      DateTime    @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
 }
 
 // ---------------------------------------------------------------------------

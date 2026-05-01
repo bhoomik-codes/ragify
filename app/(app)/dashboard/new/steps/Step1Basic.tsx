@@ -3,7 +3,9 @@
 import React, { useState } from 'react';
 import { useWizardStore } from '../wizardStore';
 import { Input } from '../../../../../components/ui/Input';
-import EmojiPicker from 'emoji-picker-react';
+import dynamic from 'next/dynamic';
+
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 
 export function Step1Basic() {
   const { data, updateData } = useWizardStore();

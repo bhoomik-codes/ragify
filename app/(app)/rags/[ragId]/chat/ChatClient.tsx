@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useDeferredValue } from 'react';
 import { useChat } from 'ai/react';
 import { RichRenderer } from '@/components/chat/RichRenderer';
 import { MessageBubble } from '@/components/chat/MessageBubble';
@@ -192,10 +192,11 @@ export function ChatClient({
   };
   
   const endRef = useRef<HTMLDivElement>(null);
+  const deferredMessages = useDeferredValue(messages);
   
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    endRef.current?.scrollIntoView({ behavior: 'auto' });
+  }, [deferredMessages]);
 
   return (
     <div className={styles.chatContainer} style={{ flexDirection: 'row' }}>
@@ -298,16 +299,16 @@ export function ChatClient({
           </div>
         )}
         
-        {messages.map((m, idx) => (
+        {deferredMessages.map((m, idx) => (
           <MessageBubble
             key={m.id}
             role={m.role as 'user' | 'assistant'}
             content={m.content}
-            isStreaming={isLoading && idx === messages.length - 1 && m.role === 'assistant'}
+            isStreaming={isLoading && idx === deferredMessages.length - 1 && m.role === 'assistant'}
             index={idx}
           />
         ))}
-        {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+        {isLoading && deferredMessages[deferredMessages.length - 1]?.role !== 'assistant' && (
           <TypingIndicator />
         )}
         <div ref={endRef} />

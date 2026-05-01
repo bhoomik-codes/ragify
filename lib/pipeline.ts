@@ -101,7 +101,7 @@ export function chunkDocument(text: string, chunkSize: number, overlap: number):
       metadata: { section: `section_${chunkIndex}` },
     });
 
-    if (overlap <= 0) continue;
+    if (overlap <= 0 || i >= semanticUnits.length) continue;
 
     // For overlap, carry over trailing semantic units whose total word count ≤ overlap.
     let carryWords = 0;
@@ -234,79 +234,88 @@ export async function runIngestionPipeline(documentId: string): Promise<void> {
     // Break text into chunks
     const documentChunks = chunkDocument(textChunkRaw, rag.chunkSize, rag.chunkOverlap);
 
+    // Free the massive raw string immediately so the Garbage Collector can reclaim memory
+    textChunkRaw = "";
+
     const nowIso = new Date().toISOString();
-    const embeddingMode: EmbeddingMode = useRealEmbeddings ? "REAL" : "MOCK";
+    let currentEmbeddingMode: EmbeddingMode = useRealEmbeddings ? "REAL" : "MOCK";
 
     await db.document.update({
       where: { id: documentId },
       data: {
         metadata: withEmbeddingMetadata(documentRecord.metadata, {
-          mode: embeddingMode,
+          mode: currentEmbeddingMode,
           model: embeddingModelName,
           updatedAt: nowIso,
         }) as any,
       },
     });
 
-    // Create chunks first (so we have chunk IDs to attach embeddings to).
-    const createdChunks = await Promise.all(
-      documentChunks.map((chunkData) =>
-        db.chunk.create({
-          data: {
-            documentId,
-            content: chunkData.content,
-            index: chunkData.index,
-            tokenCount: chunkData.tokenCount,
-            metadata: chunkData.metadata as any,
-          },
-        }),
-      ),
-    );
+    const BATCH_SIZE = 32;
 
-    // Generate embeddings (real or mock) and store.
-    const vectors: Float32Array[] = [];
-    if (useRealEmbeddings) {
-      const BATCH_SIZE = 32;
-      try {
-        for (let i = 0; i < documentChunks.length; i += BATCH_SIZE) {
-          const slice = documentChunks.slice(i, i + BATCH_SIZE).map((c) => c.content);
-          const embedded = await embedBatch(slice, embeddingModelName);
-          vectors.push(...embedded);
+    // Process iteratively to prevent memory explosion and Prisma connection pool starvation
+    for (let i = 0; i < documentChunks.length; i += BATCH_SIZE) {
+      const chunkBatch = documentChunks.slice(i, i + BATCH_SIZE);
+
+      // 1. Create DB chunks for this batch
+      const createdChunks = await Promise.all(
+        chunkBatch.map((chunkData) =>
+          db.chunk.create({
+            data: {
+              documentId,
+              content: chunkData.content,
+              index: chunkData.index,
+              tokenCount: chunkData.tokenCount,
+              metadata: chunkData.metadata as any,
+            },
+          }),
+        ),
+      );
+
+      // 2. Generate embeddings for this batch
+      let batchVectors: Float32Array[] = [];
+      if (currentEmbeddingMode === "REAL") {
+        try {
+          batchVectors = await embedBatch(
+            chunkBatch.map((c) => c.content),
+            embeddingModelName
+          );
+        } catch (e) {
+          console.warn(
+            `[PIPELINE] Real embedding failed at chunk ${i}; falling back to mock embeddings:`,
+            e,
+          );
+          currentEmbeddingMode = "MOCK";
+          batchVectors = chunkBatch.map(() => mockEmbedding());
+
+          await db.document.update({
+            where: { id: documentId },
+            data: {
+              metadata: withEmbeddingMetadata(documentRecord.metadata, {
+                mode: "MOCK",
+                model: embeddingModelName,
+                updatedAt: new Date().toISOString(),
+              }) as any,
+            },
+          });
         }
-      } catch (e) {
-        console.warn(
-          `[PIPELINE] Real embedding failed; falling back to mock embeddings for Document ${documentId}:`,
-          e,
-        );
-        vectors.length = 0;
-        for (let i = 0; i < documentChunks.length; i++) vectors.push(mockEmbedding());
-
-        await db.document.update({
-          where: { id: documentId },
-          data: {
-            metadata: withEmbeddingMetadata(documentRecord.metadata, {
-              mode: "MOCK",
-              model: embeddingModelName,
-              updatedAt: new Date().toISOString(),
-            }) as any,
-          },
-        });
+      } else {
+        batchVectors = chunkBatch.map(() => mockEmbedding());
       }
-    } else {
-      for (let i = 0; i < documentChunks.length; i++) vectors.push(mockEmbedding());
-    }
 
-    await Promise.all(
-      createdChunks.map((recordChunk, idx) =>
-        db.embedding.create({
-          data: {
-            chunkId: recordChunk.id,
-            model: embeddingModelName,
-            vector: serializeVector(vectors[idx]),
-          },
-        }),
-      ),
-    );
+      // 3. Store vectors for this batch
+      await Promise.all(
+        createdChunks.map((recordChunk, idx) =>
+          db.embedding.create({
+            data: {
+              chunkId: recordChunk.id,
+              model: embeddingModelName,
+              vector: serializeVector(batchVectors[idx]),
+            },
+          }),
+        ),
+      );
+    }
 
     await db.document.update({
       where: { id: documentId },

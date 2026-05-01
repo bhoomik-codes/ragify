@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { JetBrains_Mono } from 'next/font/google';
+import { JetBrains_Mono, DM_Sans } from 'next/font/google';
 import "./globals.css";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
+  display: 'swap',
+});
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
   display: 'swap',
 });
 
@@ -22,10 +28,9 @@ export default function RootLayout({
   const theme = cookies().get('theme')?.value || 'light';
   
   return (
-    <html lang="en" data-theme={theme} suppressHydrationWarning className={jetbrainsMono.variable}>
+    <html lang="en" data-theme={theme} suppressHydrationWarning className={`${jetbrainsMono.variable} ${dmSans.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Removed preconnects as next/font handles optimization */}
       </head>
       <body>
         {children}
