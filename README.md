@@ -277,7 +277,6 @@ ragify/
   - Enhanced the Mermaid component to capture and display actual parser errors instead of hanging on failures.
 - **Infrastructure & Testing**:
   - Expanded test suite with comprehensive integration tests for API routes and pipeline logic.
-  - Hardened repository management by tracking `FUTURE_PLAN.md` and ignoring SQLite temporary artifacts (`.db-wal`, `.db-shm`).
 
 ### v0.2.1 - Recent Updates
 
