@@ -4,6 +4,7 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createMistral } from '@ai-sdk/mistral';
 import { Provider } from './types';
+import { withRetry } from './retry';
 
 export type LlmErrorCode =
   | 'INVALID_API_KEY'
@@ -19,6 +20,16 @@ export class LlmError extends Error {
     this.name = 'LlmError';
   }
 }
+
+/**
+ * Error codes that indicate a transient condition the caller can safely retry.
+ * Everything else (invalid key, exhausted credits, wrong model, context overflow)
+ * is a permanent client-side error — retrying wastes time and quota.
+ */
+const RETRYABLE_CODES = new Set<LlmErrorCode>([
+  'RATE_LIMIT',
+  'PROVIDER_ERROR',
+]);
 
 function classifyProviderError(err: unknown): LlmError {
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
@@ -150,18 +161,40 @@ export async function ragStream(params: RagStreamParams) {
     }
   }
 
-  // Use Vercel AI SDK to map configurations
+  // Use Vercel AI SDK to stream — wrapped with exponential-backoff retry for
+  // transient errors (RATE_LIMIT, PROVIDER_ERROR). Non-retryable errors
+  // (bad key, exhausted credits, wrong model, context too long) propagate immediately.
   try {
-    const result = await streamText({
-      model: modelInstance,
-      system: systemPrompt,
-      messages: messages as CoreMessage[],
-      temperature,
-      maxTokens,
-      topP,
-      // Ensure that `onFinish: params.onFinish` is explicitly spread into `streamText({...})`!
-      onFinish,
-    });
+    const result = await withRetry(
+      async () =>
+        streamText({
+          model: modelInstance,
+          system: systemPrompt,
+          messages: messages as CoreMessage[],
+          temperature,
+          maxTokens,
+          topP,
+          onFinish,
+        }),
+      {
+        maxAttempts: 3,
+        baseDelayMs: 1_000,
+        maxDelayMs:  8_000,
+        retryOn: (err) => {
+          // Only classify and retry transient provider errors.
+          // Unknown errors (network blips) are also retried.
+          const classified = classifyProviderError(err);
+          return RETRYABLE_CODES.has(classified.code);
+        },
+        onRetry: (err, attempt, delayMs) => {
+          const classified = classifyProviderError(err);
+          console.warn(
+            `[LLM] Transient error "${classified.code}" on attempt ${attempt}. ` +
+            `Retrying in ${Math.round(delayMs)}ms…`
+          );
+        },
+      },
+    );
 
     return result;
   } catch (err) {

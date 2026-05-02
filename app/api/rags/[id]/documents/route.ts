@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { runIngestionPipeline } from '@/lib/pipeline';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { waitUntil } from '@vercel/functions';
 import { getStorage } from '@/lib/storage';
 import { UPLOAD_CONFIG } from '@/lib/uploadConfig';
 
@@ -67,9 +68,11 @@ export async function POST(
     });
 
     // Fire and forget background ingestion
-    runIngestionPipeline(document.id).catch(err => {
-      console.error(`[BACKGROUND_INGESTION_ERROR] Document ${document.id}:`, err);
-    });
+    waitUntil(
+      runIngestionPipeline(document.id).catch(err => {
+        console.error(`[BACKGROUND_INGESTION_ERROR] Document ${document.id}:`, err);
+      })
+    );
 
     return NextResponse.json({
       id: document.id,

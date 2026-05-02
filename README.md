@@ -81,7 +81,7 @@ Your `.env` should look like:
 ```env
 DATABASE_URL="file:./dev.db"
 AUTH_SECRET="<paste-your-auth-secret-here>"
-NEXTAUTH_URL="http://localhost:3000"
+AUTH_URL="http://localhost:3000"
 ENCRYPTION_KEY="<paste-your-64-hex-char-key-here>"
 MOCK_MODE="false"
 ```
@@ -213,7 +213,7 @@ ragify/
 | :--- | :---: | :--- | :--- |
 | `DATABASE_URL` | ✅ | `file:./dev.db` | Database connection string |
 | `AUTH_SECRET` | ✅ | — | NextAuth session signing key |
-| `NEXTAUTH_URL` | ✅ | `http://localhost:3000` | App base URL for NextAuth callbacks |
+| `AUTH_URL` | ✅ | `http://localhost:3000` | App base URL for NextAuth callbacks |
 | `ENCRYPTION_KEY` | ✅ | — | 64-char hex string for AES-256-GCM |
 | `MOCK_MODE` | ❌ | `"false"` | Set `"true"` to bypass real LLM calls |
 | `MOCK_PIPELINE_DELAY_MS` | ❌ | `500` | Simulated pipeline delay (ms) |

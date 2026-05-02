@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chunkDocument } from "../lib/pipeline";
+import { fallbackChunkDocument as chunkDocument } from "../lib/pipeline";
 
 // ---------------------------------------------------------------------------
 // chunkDocument — unit tests
