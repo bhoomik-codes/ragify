@@ -9,7 +9,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, initialTheme = 'li
     <div className={styles.layout}>
       <Sidebar />
       <div className={styles.mainWrapper}>
-        <TopBar />
+        <TopBar user={user} />
         <main className={styles.mainContent}>
           {children}
         </main>

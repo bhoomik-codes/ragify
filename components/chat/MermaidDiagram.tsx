@@ -38,17 +38,22 @@ export function MermaidDiagram({ source }: MermaidProps) {
     const renderDiagram = async () => {
       try {
         const { default: mermaid } = await import('mermaid');
+
+        // ── Console debug: always log the source we're about to render ────
+        console.group('%c[MermaidDiagram] Source', 'color: #6c63ff; font-weight: bold;');
+        console.log(source);
+        console.groupEnd();
+
         try {
           await mermaid.parse(source);
         } catch (parseError: any) {
-          if (!cancelled) {
-            // Provide the actual parser error instead of hanging on a generic message
-            setError(parseError?.message || 'Invalid Mermaid syntax.');
-          }
+          const errMsg = parseError?.message || 'Invalid Mermaid syntax.';
+          console.error('[MermaidDiagram] Parse failed:', errMsg);
+          if (!cancelled) setError(errMsg);
           return;
         }
 
-        const id = `mmd-${Date.now()}`; // Unique ID to avoid collision
+        const id = `mmd-${Date.now()}`;
         const { svg: renderedSvg } = await mermaid.render(id, source);
         if (!cancelled) {
           setSvg(renderedSvg);
@@ -57,27 +62,18 @@ export function MermaidDiagram({ source }: MermaidProps) {
       } catch (e: any) {
         if (!cancelled) {
           const msg = e?.message || 'Failed to render diagram';
+          console.error('[MermaidDiagram] Render failed:', msg);
           setError(msg);
         }
       } finally {
         // Mermaid sometimes leaves orphaned error containers in the DOM
-        const orphaned = document.querySelectorAll('[id^="dmmd-"]');
-        orphaned.forEach(node => node.remove());
+        document.querySelectorAll('[id^="dmmd-"]').forEach(n => n.remove());
       }
     };
 
     renderDiagram();
     return () => { cancelled = true; };
   }, [source, ready]);
-
-  if (error === 'Waiting for valid Mermaid syntax...') {
-    return (
-      <div className={styles.loadingCard}>
-        <div className={styles.spinner}></div>
-        <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{error}</span>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -96,7 +92,7 @@ export function MermaidDiagram({ source }: MermaidProps) {
     try {
       const dataUrl = await toPng(containerRef.current, { backgroundColor: 'var(--bg-card)' });
       const link = document.createElement('a');
-      link.download = `mermaid-${Date.now()}.png`;
+      link.download = `diagram-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
     } catch (e) {
@@ -137,7 +133,7 @@ export function MermaidDiagram({ source }: MermaidProps) {
       <div className={styles.diagramHeader}>
         <span className={styles.diagramLabel}>Diagram</span>
         <div className={styles.diagramActions}>
-          <button onClick={() => navigator.clipboard.writeText(source)} title="Copy Source Syntax">
+          <button onClick={() => navigator.clipboard.writeText(source)} title="Copy Source">
             <Copy size={14} />
           </button>
           <button title="Copy as Image" onClick={handleCopyImage}><ImageIcon size={14} /></button>

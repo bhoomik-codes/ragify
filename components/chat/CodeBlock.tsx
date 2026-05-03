@@ -57,6 +57,26 @@ export function CodeBlock({ inline, className, children }: CodeBlockProps) {
       return <MermaidDiagram source={content} />;
     }
 
+    if (language === 'diagram') {
+      // LLM outputs JSON, we convert to valid Mermaid — syntax errors impossible
+      const { jsonToDiagram } = require('@/lib/diagramBuilder');
+      const mermaidSource = jsonToDiagram(content);
+      if (mermaidSource) {
+        return <MermaidDiagram source={mermaidSource} />;
+      }
+      // Fallback: show the raw JSON so the user can see what went wrong
+      return (
+        <div className={styles.codeBlockWrapper}>
+          <div className={styles.codeBlockHeader}>
+            <span className={styles.languageBadge}>diagram (invalid JSON)</span>
+          </div>
+          <div className={styles.highlighterWrapper}>
+            <CodeBlockHighlighter language="json" content={content} />
+          </div>
+        </div>
+      );
+    }
+
     if (language === 'html' || language === 'react') {
       return <HtmlArtifact html={content} isReact={language === 'react'} />;
     }

@@ -11,7 +11,7 @@ export async function DELETE() {
 
     await db.user.update({
       where: { id: session.user.id },
-      data: { avatarUrl: null }
+      data: { avatarUrl: null, image: null }
     });
 
     return NextResponse.json({ success: true }, { status: 200 });

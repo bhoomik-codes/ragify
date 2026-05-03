@@ -1,17 +1,30 @@
+/* ===== Wrappers ===== */
 .userWrapper {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  flex-direction: column;
   align-items: flex-end;
+  gap: 4px;
 }
 
 .assistantWrapper {
   display: flex;
-  justify-content: flex-start;
-  gap: 10px;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
+/* ===== Bubble row: avatar + bubble side-by-side ===== */
+.bubbleRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.userWrapper .bubbleRow {
+  flex-direction: row-reverse;
+}
+
+/* ===== Avatar ===== */
 .avatar {
   width: 30px;
   height: 30px;
@@ -22,9 +35,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-bottom: 2px;
 }
 
+/* ===== Bubbles ===== */
 .userBubble {
   background: var(--accent);
   color: #fff;
@@ -44,7 +57,6 @@
   border: 1px solid var(--border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   word-wrap: break-word;
-  /* Ensure rich content overflows gracefully */
   overflow: visible;
 }
 
@@ -55,7 +67,7 @@
   white-space: pre-wrap;
 }
 
-/* Streaming cursor on assistant bubble */
+/* ===== Streaming cursor ===== */
 @keyframes blink { 0%, 100% { opacity: 1 } 50% { opacity: 0 } }
 .streaming::after {
   content: '▋';
@@ -66,7 +78,98 @@
   font-size: 0.875em;
 }
 
+/* ===== Action row (Copy / Edit / Retry / Delete) ===== */
+.actionRow {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  /* offset to sit just under the bubble, clear of the avatar */
+  padding-left: 40px;   /* assistant: indent past avatar */
+}
+
+.userWrapper .actionRow {
+  padding-left: 0;
+  padding-right: 4px;
+  justify-content: flex-end;
+}
+
+/* Show on wrapper hover */
+.userWrapper:hover .actionRow,
+.assistantWrapper:hover .actionRow {
+  opacity: 1;
+}
+
+.actionBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, color 0.1s;
+}
+
+.actionBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* ===== Edit mode ===== */
+.editMode {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.editTextarea {
+  width: 100%;
+  min-width: 250px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.editActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.editCancel {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+
+.editSave {
+  background: #fff;
+  border: none;
+  color: var(--accent);
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* ===== Responsive ===== */
 @media (max-width: 768px) {
   .userBubble, .assistantBubble { max-width: 90%; }
   .avatar { width: 26px; height: 26px; }
+  .actionRow { padding-left: 34px; }
 }

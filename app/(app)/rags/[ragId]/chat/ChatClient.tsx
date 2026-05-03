@@ -8,7 +8,7 @@ import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ArtifactSidebar } from '@/components/artifact/ArtifactSidebar';
 import { ChatLayout } from '@/components/layout/ChatLayout';
 import Link from 'next/link';
-import { ArrowLeft, MessageSquareText, Settings, Menu, Plus, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquareText, Settings, Menu, Plus, MessageSquare, Trash2, Edit3, MoreVertical, Check, X } from 'lucide-react';
 import styles from './Chat.module.css';
 import { UPLOAD_CONFIG } from '@/lib/uploadConfig';
 
@@ -60,6 +60,9 @@ export function ChatClient({
   const [panelOpen, setPanelOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
+
+  const [editingConvId, setEditingConvId] = React.useState<string | null>(null);
+  const [editConvTitle, setEditConvTitle] = React.useState('');
 
   const [temperature, setTemperature] = React.useState(initialTemperature);
   const [maxTokens, setMaxTokens] = React.useState(initialMaxTokens);
@@ -154,7 +157,7 @@ export function ChatClient({
     return initialProvider;
   }, [selectedModel, initialProvider]);
 
-  const { messages, setMessages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
+  const { messages, setMessages, append, reload, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
     api: `/api/rags/${ragId}/chat`,
     body: { model: selectedModel, provider: selectedProvider, conversationId: activeConversationId },
     onResponse: (res) => {
@@ -165,6 +168,76 @@ export function ChatClient({
       }
     }
   });
+
+  const handleDeleteConversation = async (e: React.MouseEvent, convId: string) => {
+    e.stopPropagation();
+    if (!confirm('Delete this conversation?')) return;
+    try {
+      await fetch(`/api/rags/${ragId}/conversations/${convId}`, { method: 'DELETE' });
+      if (activeConversationId === convId) createNewChat();
+      fetchConversations();
+    } catch(e) {}
+  };
+
+  const handleRenameConversation = async (e: React.MouseEvent, convId: string) => {
+    e.stopPropagation();
+    if (editConvTitle.trim()) {
+      try {
+        await fetch(`/api/rags/${ragId}/conversations/${convId}`, { 
+          method: 'PATCH', 
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ title: editConvTitle.trim() }) 
+        });
+        fetchConversations();
+      } catch(e) {}
+    }
+    setEditingConvId(null);
+  };
+
+  const handleStartRename = (e: React.MouseEvent, convId: string, currentTitle: string) => {
+    e.stopPropagation();
+    setEditingConvId(convId);
+    setEditConvTitle(currentTitle || 'New Conversation');
+  };
+
+  const truncateDbMessages = async (keepCount: number) => {
+    if (!activeConversationId) return;
+    await fetch(`/api/rags/${ragId}/conversations/${activeConversationId}/truncate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keepCount })
+    });
+  };
+
+  const handleRetry = async (msgId: string) => {
+    const msgIndex = messages.findIndex(m => m.id === msgId);
+    if (msgIndex === -1) return;
+    const sliceIndex = messages[msgIndex].role === 'assistant' ? msgIndex : msgIndex + 1;
+    await truncateDbMessages(sliceIndex);
+    const truncated = messages.slice(0, sliceIndex);
+    setMessages(truncated);
+    setTimeout(() => reload(), 50);
+  };
+
+  const handleEditMessage = async (msgId: string, newContent: string) => {
+    const msgIndex = messages.findIndex(m => m.id === msgId);
+    if (msgIndex === -1) return;
+    await truncateDbMessages(msgIndex);
+    const truncated = messages.slice(0, msgIndex);
+    setMessages(truncated);
+    setTimeout(() => append({ role: 'user', content: newContent }), 50);
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    // Delete from backend if we have a conversation
+    if (activeConversationId) {
+      try {
+        await fetch(`/api/rags/${ragId}/conversations/${activeConversationId}/messages/${msgId}`, { method: 'DELETE' });
+      } catch(e) {}
+    }
+    // Remove from UI
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+  };
 
   const loadConversation = async (convId: string) => {
     try {
@@ -195,8 +268,13 @@ export function ChatClient({
   const deferredMessages = useDeferredValue(messages);
   
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [deferredMessages]);
+    // Only auto-scroll while the AI is actively streaming a response.
+    // Without this guard, scroll-jacks to bottom every time the HTML iframe
+    // adjusts its height, which causes the infinite-scroll symptom.
+    if (isLoading) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [deferredMessages, isLoading]);
 
   return (
     <div className={styles.chatContainer} style={{ flexDirection: 'row' }}>
@@ -212,14 +290,38 @@ export function ChatClient({
             <h4 style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '12px', textTransform: 'uppercase' }}>Recent</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {conversations.map(c => (
-                <button 
-                  key={c.id} 
-                  onClick={() => loadConversation(c.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: 'var(--radius)', border: 'none', background: activeConversationId === c.id ? 'var(--bg-hover)' : 'transparent', color: 'var(--text)', cursor: 'pointer', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                >
-                  <MessageSquare size={14} style={{ flexShrink: 0 }} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.title || 'New Conversation'}</span>
-                </button>
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', background: activeConversationId === c.id ? 'var(--bg-hover)' : 'transparent', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                  {editingConvId === c.id ? (
+                    <div style={{ display: 'flex', alignItems: 'center', padding: '4px 8px', flex: 1, gap: '4px' }}>
+                      <input 
+                        autoFocus
+                        value={editConvTitle}
+                        onChange={e => setEditConvTitle(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleRenameConversation(e as any, c.id);
+                          if (e.key === 'Escape') setEditingConvId(null);
+                        }}
+                        style={{ flex: 1, minWidth: 0, padding: '4px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: '4px', fontSize: '0.875rem' }}
+                      />
+                      <button onClick={(e) => handleRenameConversation(e, c.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: '4px' }}><Check size={14} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); setEditingConvId(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}><X size={14} /></button>
+                    </div>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={() => loadConversation(c.id)}
+                        style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer', textAlign: 'left', minWidth: 0 }}
+                      >
+                        <MessageSquare size={14} style={{ flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || 'New Conversation'}</span>
+                      </button>
+                      <div style={{ display: 'flex', padding: '0 8px', gap: '4px', opacity: 0.7 }}>
+                        <button onClick={(e) => handleStartRename(e, c.id, c.title)} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', padding: '4px' }} title="Rename"><Edit3 size={12} /></button>
+                        <button onClick={(e) => handleDeleteConversation(e, c.id)} style={{ background: 'none', border: 'none', color: 'var(--error, #e57373)', cursor: 'pointer', padding: '4px' }} title="Delete"><Trash2 size={12} /></button>
+                      </div>
+                    </>
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -302,10 +404,14 @@ export function ChatClient({
         {deferredMessages.map((m, idx) => (
           <MessageBubble
             key={m.id}
+            id={m.id}
             role={m.role as 'user' | 'assistant'}
             content={m.content}
             isStreaming={isLoading && idx === deferredMessages.length - 1 && m.role === 'assistant'}
             index={idx}
+            onRetry={m.role === 'assistant' ? () => handleRetry(m.id) : undefined}
+            onEdit={m.role === 'user' ? (newContent) => handleEditMessage(m.id, newContent) : undefined}
+            onDelete={() => handleDeleteMessage(m.id)}
           />
         ))}
         {isLoading && deferredMessages[deferredMessages.length - 1]?.role !== 'assistant' && (
@@ -360,6 +466,7 @@ export function ChatClient({
             onChange={handleInputChange}
             placeholder="Ask anything..."
             autoComplete="off"
+            autoFocus
           />
           <button type="submit" className={styles.sendBtn} disabled={isLoading || !input.trim()} aria-label="Send message">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

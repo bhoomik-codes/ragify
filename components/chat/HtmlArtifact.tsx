@@ -55,6 +55,46 @@ export function HtmlArtifact({ html, title, isReact }: HtmlArtifactProps) {
       </style>
     `;
 
+    // One-shot resize: measure once on load + after a short settle delay.
+    // Using ResizeObserver on document.body causes an infinite loop:
+    // iframe grows → parent sets taller height → body reflows → observer fires → repeat.
+    const resizeScript = `
+      <script>
+        const MAX_H = 700;
+        let lastH = 0;
+        const send = () => {
+          const h = Math.min(document.body.scrollHeight, MAX_H);
+          if (h !== lastH) {
+            lastH = h;
+            window.parent.postMessage({ type: 'resize', height: h }, '*');
+          }
+        };
+        window.addEventListener('load', () => { send(); setTimeout(send, 300); setTimeout(send, 800); });
+      <\/script>
+    `;
+
+    // Surface JS runtime errors visually instead of blank white box
+    const errorBoundary = `
+      <script>
+        window.onerror = function(msg, src, line, col) {
+          document.body.innerHTML =
+            '<div style="color:#ef5350;font-family:monospace;padding:20px;' +
+            'background:#1e1e1e;border-radius:8px;border:1px solid #ef5350;">' +
+            '<strong>⚠ JavaScript Error</strong><br/>' + msg +
+            '<br/><small style=\\'opacity:.7\\'>' + (src||'') + ' line ' + line + ':' + col + '</small>' +
+            '</div>';
+        };
+      <\/script>
+    `;
+
+    // Strip broken external file references the LLM sometimes generates
+    // Strip LOCAL file references only (not CDN URLs starting with http/https)
+    const sanitizeHtml = (raw: string) => raw
+      // Remove <link href="local-file.css"> but keep CDN links
+      .replace(/<link[^>]+href=["'](?!https?:\/\/)[^"']*\.css["'][^>]*>/gi, '')
+      // Remove <script src="local-file.js"> but keep CDN scripts
+      .replace(/<script[^>]+src=["'](?!https?:\/\/)[^"']*\.js["'][^>]*><\/script>/gi, '');
+
     if (isReact) {
       return `
         <!DOCTYPE html>
@@ -90,18 +130,24 @@ export function HtmlArtifact({ html, title, isReact }: HtmlArtifactProps) {
               document.getElementById('root').innerHTML = '<div style="color:red;padding:20px;"><strong>React Render Error:</strong><br/>' + err.message + '</div>';
             }
           </script>
-          <script>
-            const notifyResize = () => {
-              window.parent.postMessage({ type: 'resize', height: document.body.scrollHeight }, '*');
-            };
-            window.onload = notifyResize;
-            new ResizeObserver(notifyResize).observe(document.body);
-          </script>
+          ${resizeScript}
         </body>
         </html>
       `;
     }
 
+    // Detect if the LLM gave us a full HTML document
+    const isFullDocument = /<html/i.test(html);
+
+    if (isFullDocument) {
+      const cleaned = sanitizeHtml(html);
+      // Inject error boundary right after <body> and resize before </body>
+      return cleaned
+        .replace(/<body([^>]*)>/i, `<body$1>${errorBoundary}`)
+        .replace(/<\/body>/i, `${resizeScript}</body>`);
+    }
+
+    // Body-only snippet — wrap it
     return `
       <!DOCTYPE html>
       <html>
@@ -109,28 +155,32 @@ export function HtmlArtifact({ html, title, isReact }: HtmlArtifactProps) {
         ${baseStyles}
       </head>
       <body>
-        ${html}
-        <script>
-          const notifyResize = () => {
-            window.parent.postMessage({ type: 'resize', height: document.body.scrollHeight }, '*');
-          };
-          window.onload = notifyResize;
-          new ResizeObserver(notifyResize).observe(document.body);
-        </script>
+        ${errorBoundary}
+        ${sanitizeHtml(html)}
+        ${resizeScript}
       </body>
       </html>
     `;
   };
 
+
   useEffect(() => {
+    let rafId: number;
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'resize' && event.data.height) {
-        setHeight(Math.max(100, event.data.height));
+        cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          // Hard cap at 700px — prevents runaway growth
+          setHeight(Math.min(Math.max(150, event.data.height), 700));
+        });
       }
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const handleRefresh = () => setKey(k => k + 1);
