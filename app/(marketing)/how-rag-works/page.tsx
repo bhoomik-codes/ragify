@@ -101,7 +101,9 @@ export default function HowRagWorksPage() {
                 <p className={styles.paragraph}>We parse PDFs, Word docs, and text files instantly to extract raw text content.</p>
               </div>
               <div className={styles.timelineCenter}><FileText /></div>
-              <div className={styles.timelineVisual}></div>
+              <div className={styles.timelineVisual}>
+                <img src="/marketing/step_1.png" alt="Document Ingestion" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }} />
+              </div>
             </motion.div>
 
             <motion.div className={styles.timelineItem} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeUp}>
@@ -110,7 +112,9 @@ export default function HowRagWorksPage() {
                 <p className={styles.paragraph}>Documents are sliced into smaller, mathematically overlapping chunks to preserve context and meaning.</p>
               </div>
               <div className={styles.timelineCenter}><Scissors /></div>
-              <div className={styles.timelineVisual}></div>
+              <div className={styles.timelineVisual}>
+                <img src="/marketing/step_2.png" alt="Semantic Chunking" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }} />
+              </div>
             </motion.div>
 
             <motion.div className={styles.timelineItem} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeUp}>
@@ -119,7 +123,9 @@ export default function HowRagWorksPage() {
                 <p className={styles.paragraph}>Chunks are converted into high-dimensional vector arrays and stored in a specialized Vector Database.</p>
               </div>
               <div className={styles.timelineCenter}><Database /></div>
-              <div className={styles.timelineVisual}></div>
+              <div className={styles.timelineVisual}>
+                <img src="/marketing/step_3.png" alt="Embedding" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }} />
+              </div>
             </motion.div>
 
             <motion.div className={styles.timelineItem} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeUp}>
@@ -128,7 +134,9 @@ export default function HowRagWorksPage() {
                 <p className={styles.paragraph}>When a user asks a question, we execute a Reciprocal Rank Fusion search (Dense + Keyword) to find the perfect matching chunks.</p>
               </div>
               <div className={styles.timelineCenter}><Search /></div>
-              <div className={styles.timelineVisual}></div>
+              <div className={styles.timelineVisual}>
+                <img src="/marketing/step_4.png" alt="Hybrid Retrieval" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }} />
+              </div>
             </motion.div>
 
             <motion.div className={styles.timelineItem} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeUp}>
@@ -137,7 +145,9 @@ export default function HowRagWorksPage() {
                 <p className={styles.paragraph}>The matched context is securely injected into the LLM prompt, forcing it to generate a highly accurate, cited response.</p>
               </div>
               <div className={styles.timelineCenter}><MessageSquare /></div>
-              <div className={styles.timelineVisual}></div>
+              <div className={styles.timelineVisual}>
+                <img src="/marketing/step_5.png" alt="LLM Generation" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '16px' }} />
+              </div>
             </motion.div>
             
           </div>
