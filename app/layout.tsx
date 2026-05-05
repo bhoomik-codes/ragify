@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { JetBrains_Mono, DM_Sans } from 'next/font/google';
+import { Space_Grotesk, DM_Sans } from 'next/font/google';
 import "./globals.css";
 
-const jetbrainsMono = JetBrains_Mono({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  variable: '--font-mono',
+  variable: '--font-heading',
   display: 'swap',
 });
 
@@ -14,6 +14,7 @@ const dmSans = DM_Sans({
   variable: '--font-sans',
   display: 'swap',
 });
+
 
 export const metadata: Metadata = {
   title: "Ragify | Your Personal Knowledge Chatbot",
@@ -28,7 +29,7 @@ export default function RootLayout({
   const theme = cookies().get('theme')?.value || 'light';
   
   return (
-    <html lang="en" data-theme={theme} suppressHydrationWarning className={`${jetbrainsMono.variable} ${dmSans.variable}`}>
+    <html lang="en" data-theme={theme} suppressHydrationWarning className={`${spaceGrotesk.variable} ${dmSans.variable}`}>
       <head>
         {/* Removed preconnects as next/font handles optimization */}
       </head>
