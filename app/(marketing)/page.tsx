@@ -10,7 +10,9 @@ import styles from './page.module.css';
 // Dynamically import 3D scene to prevent SSR crashes
 const Scene = dynamic(() => import('./Scene'), { ssr: false });
 
-const textVariants = {
+import { Variants } from 'framer-motion';
+
+const textVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({
     opacity: 1,

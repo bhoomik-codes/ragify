@@ -9,7 +9,9 @@ import styles from './how.module.css';
 
 const BrainScene = dynamic(() => import('./BrainScene'), { ssr: false });
 
-const fadeUp = {
+import { Variants } from 'framer-motion';
+
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 50 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
 };

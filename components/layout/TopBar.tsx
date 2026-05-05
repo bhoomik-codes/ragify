@@ -12,7 +12,7 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ user }) => {
-  const initials = (user?.displayName || user?.name || user?.email || 'U').substring(0, 2).toUpperCase();
+  const initials = (user?.name || user?.email || 'U').substring(0, 2).toUpperCase();
 
   return (
     <header className={styles.topbar}>
