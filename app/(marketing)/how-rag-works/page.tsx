@@ -19,7 +19,7 @@ export default function HowRagWorksPage() {
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.logo}>
-          <BrainCircuit size={28} color="#4f9cf9" />
+          <img src="/ragify_logo.svg" alt="Ragify Logo" width={28} height={28} />
           Ragify
         </div>
         <nav className={styles.nav}>

@@ -34,7 +34,10 @@ export const Sidebar: React.FC = () => {
 
       <aside className={`${styles.sidebar} ${mobileMenuOpen ? styles.open : ''}`}>
         <div className={styles.header}>
-          <div className={styles.logo}>Ragify</div>
+        <div className={styles.logo}>
+          <img src="/ragify_logo.svg" alt="Ragify Logo" width={24} height={24} style={{ marginRight: '8px' }} />
+          Ragify
+        </div>
           <button 
             className={styles.closeBtn} 
             onClick={() => setMobileMenuOpen(false)}
